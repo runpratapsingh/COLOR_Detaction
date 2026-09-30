@@ -1,0 +1,137 @@
+# ═══════════════════════════════════════════════════════════════
+#  .gitignore — Navfarm NNN mono-repo
+#  Covers: Python (cv-service), Node/React (testapp), databases,
+#          dev artifacts, OS files, and secrets.
+# ═══════════════════════════════════════════════════════════════
+
+# ─── Secrets & Credentials ──────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.p12
+secrets/
+credentials/
+
+# ─── Python ─────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyc
+*.pyo
+*.pyd
+.Python
+.venv/
+venv/
+env/
+ENV/
+pip-wheel-metadata/
+*.egg-info/
+dist/
+build/
+eggs/
+.eggs/
+*.egg
+*.whl
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+.coverage
+coverage.xml
+htmlcov/
+*.log
+*.pot
+*.mo
+
+# ─── Alembic (keep alembic.ini + migrations, skip env-specific) ─
+# Keep alembic.ini and versions/ — they are source-controlled.
+# Only ignore generated DB migration state files if any.
+
+# ─── Databases & Data Files ─────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+chemical_color.db
+
+# ─── CV / Computer Vision Artifacts ─────────────────────────────
+debug_artifacts/
+datasets/
+*.jpg
+*.jpeg
+*.png
+*.bmp
+*.tiff
+*.tif
+*.webp
+# Re-include intentional asset images (e.g. in testapp/assets)
+!testapp/assets/**/*.png
+!testapp/assets/**/*.jpg
+!testapp/assets/**/*.webp
+
+# ─── Node / React Native (testapp) ──────────────────────────────
+node_modules/
+.expo/
+.expo-shared/
+dist/
+build/
+*.lock
+!package-lock.json
+!yarn.lock
+!pnpm-lock.yaml
+.pnp
+.pnp.js
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.cache/
+
+# ─── Metro bundler ──────────────────────────────────────────────
+testapp/.metro/
+testapp/metro.config.js.bak
+
+# ─── iOS / Android build artefacts ──────────────────────────────
+testapp/ios/Pods/
+testapp/ios/build/
+testapp/ios/*.xcworkspace
+testapp/ios/DerivedData/
+testapp/android/.gradle/
+testapp/android/build/
+testapp/android/app/build/
+testapp/android/local.properties
+*.keystore
+!debug.keystore
+
+# ─── OS-generated ────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# ─── Editor / IDE ────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+*.iml
+.settings/
+
+# ─── Docker runtime ──────────────────────────────────────────────
+# Keep Dockerfile and docker-compose.yml (they are source).
+# Ignore local-only compose overrides.
+docker-compose.override.yml
+docker-compose.local.yml
+
+# ─── Generated test/debug scripts ────────────────────────────────
+generate_real_bottle_variants.py
+generate_test_bottles.py

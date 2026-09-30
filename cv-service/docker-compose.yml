@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  cv-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: chemical_color_detection_api
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=sqlite:///./chemical_color.db
+      - BLUR_THRESHOLD=100.0
+      - MAX_REFLECTION_PERCENTAGE=30.0
+      - MIN_QUALITY_SCORE=55.0
+    volumes:
+      - ./debug_artifacts:/app/debug_artifacts
+      - ./chemical_color.db:/app/chemical_color.db
+    restart: unless-stopped
