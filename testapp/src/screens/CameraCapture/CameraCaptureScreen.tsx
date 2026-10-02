@@ -15,7 +15,7 @@ import { Camera, useCameraDevice, useCameraPermission } from 'react-native-visio
 import { launchImageLibrary } from 'react-native-image-picker';
 import { JalqTheme } from '../../theme/colors';
 import { ChemicalTestDetail, JalqAnalysisResponse } from '../../types/jalq';
-import { analyzeBottleCapture } from '../../services/jalqApi';
+import { analyzeBottleCapture, JALQ_API_BASE } from '../../services/jalqApi';
 import { TechnicalGuideOverlay, CaptureStatus } from './TechnicalGuideOverlay';
 import {
   CaptureInstructionsModal,
@@ -84,6 +84,54 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
     }
     return () => clearInterval(interval);
   }, [isAnalyzing]);
+
+  // ── Live Preview Check — polls /preview-check every 1.5s ─────────────────
+  const previewPendingRef = useRef(false);
+
+  useEffect(() => {
+    // Only poll when live camera is active (not analyzing, not reviewing a shot)
+    if (isAnalyzing || capturedUri || !device || !cameraRef.current) return;
+
+    const pollPreview = async () => {
+      if (previewPendingRef.current) return; // skip if previous request still in flight
+      if (!cameraRef.current) return;
+
+      try {
+        previewPendingRef.current = true;
+
+        // Take a low-quality snapshot (doesn't save to disk — in-memory JPEG)
+        const snap = await cameraRef.current.takeSnapshot({ quality: 30 });
+        const snapUri = snap.path.startsWith('file://') ? snap.path : `file://${snap.path}`;
+
+        const form = new FormData();
+        form.append('image', {
+          uri: snapUri,
+          name: 'preview.jpg',
+          type: 'image/jpeg',
+        } as any);
+
+        const res = await fetch(`${JALQ_API_BASE}/preview-check`, {
+          method: 'POST',
+          body: form,
+          // Short timeout — if server is slow, skip this frame
+          signal: AbortSignal.timeout(1200),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setCaptureStatus(data.status as CaptureStatus);
+        }
+      } catch {
+        // Network error or timeout — don't crash, just leave last status
+      } finally {
+        previewPendingRef.current = false;
+      }
+    };
+
+    const intervalId = setInterval(pollPreview, 1500);
+    return () => clearInterval(intervalId);
+  }, [isAnalyzing, capturedUri, device]);
+
 
   const handleCapturePhoto = async () => {
     if (!cameraRef.current) return;
