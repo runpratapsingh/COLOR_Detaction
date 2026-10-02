@@ -383,7 +383,7 @@ export const BottleColorDetectionScreen: React.FC = () => {
             style={styles.input}
             value={backendUrl}
             onChangeText={setBackendUrl}
-            placeholder="http://192.168.1.46:8000/api/v1"
+            placeholder="http://192.168.29.205:8000/api/v1"
             placeholderTextColor="#71717A"
           />
         </View>

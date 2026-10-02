@@ -1,7 +1,7 @@
 import { AnalysisResponse, AnalyzeParams } from '../types/colorDetection';
 
 // Local Wi-Fi IP address for mobile devices on same network
-export const DEFAULT_API_URL = 'http://192.168.1.46:8000/api/v1';
+export const DEFAULT_API_URL = 'http://192.168.29.205:8000/api/v1';
 
 export async function analyzeBottleImage(
   params: AnalyzeParams,

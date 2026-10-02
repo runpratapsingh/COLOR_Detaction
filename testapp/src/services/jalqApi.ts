@@ -8,7 +8,7 @@ import {
 } from '../types/jalq';
 
 // Default Wi-Fi LAN / simulator endpoint for FastAPI CV Service
-export let JALQ_API_BASE = 'http://192.168.1.46:8000/api/v1';
+export let JALQ_API_BASE = 'http://192.168.29.205:8000/api/v1';
 export let CURRENT_USER_ROLE: UserRole = 'TEST_MANAGER';
 
 export function setApiBaseUrl(url: string) {
