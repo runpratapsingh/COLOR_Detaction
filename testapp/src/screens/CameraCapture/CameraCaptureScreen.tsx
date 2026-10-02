@@ -16,7 +16,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import { JalqTheme } from '../../theme/colors';
 import { ChemicalTestDetail, JalqAnalysisResponse } from '../../types/jalq';
 import { analyzeBottleCapture } from '../../services/jalqApi';
-import { TechnicalGuideOverlay } from './TechnicalGuideOverlay';
+import { TechnicalGuideOverlay, CaptureStatus } from './TechnicalGuideOverlay';
 import {
   CaptureInstructionsModal,
   HeaderBackButton,
@@ -53,6 +53,7 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
 
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisStep, setAnalysisStep] = useState(0);
+  const [captureStatus, setCaptureStatus] = useState<CaptureStatus>('waiting');
 
   const pipelineSteps = [
     'Checking photo clarity and lighting...',
@@ -248,10 +249,10 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
           </View>
         )}
 
-        {/* Technical Guidance Reticle */}
+        {/* Technical Guidance Reticle — live status */}
         {!isAnalyzing && (
           <TechnicalGuideOverlay
-            isReadyToCapture={true}
+            status={captureStatus}
             onOpenInstructions={() => setShowInstructions(true)}
           />
         )}
