@@ -100,8 +100,10 @@ class ReferencePatchWhiteBalance(WhiteBalanceStrategy):
         # Reject non-neutral pixels within the patch (a hand, clutter, or shadow that spills
         # into the sampled background region) so gains come only from genuinely white/gray
         # pixels rather than being skewed by whatever else happened to be in frame.
+        # S < 80 rejects strongly colored pixels (bright red, green, blue objects) while keeping
+        # warm/cool-tinted white-paper pixels which reach 26-70% HSV saturation under real illuminants.
         hsv_patch = cv2.cvtColor(patch_pixels.reshape(-1, 1, 3).astype(np.uint8), cv2.COLOR_BGR2HSV).reshape(-1, 3)
-        neutral_selector = (hsv_patch[:, 1] < 60) & (hsv_patch[:, 2] > 80)
+        neutral_selector = (hsv_patch[:, 1] < 80) & (hsv_patch[:, 2] > 80)
         if int(np.sum(neutral_selector)) >= self.MIN_NEUTRAL_SAMPLES:
             patch_pixels = patch_pixels[neutral_selector]
 
@@ -115,8 +117,11 @@ class ReferencePatchWhiteBalance(WhiteBalanceStrategy):
         sat = float(hsv_sample[1]) / 255.0 * 100.0
         val = float(hsv_sample[2]) / 255.0 * 100.0
 
-        # If background is too saturated (> 25% saturation) or too dark (V < 45%), do not distort with blind gains
-        if sat > 25.0 or val < 45.0:
+        # If background is too saturated (> 40% saturation) or too dark (V < 45%), do not distort with blind gains
+        # NOTE: 40% (not 25%) — warm fluorescent or incandescent white paper can reach 26-35% saturation
+        # in HSV. Gating at 25% was incorrectly bypassing WB for real-world warm-light captures.
+        # We only want to reject clearly non-neutral surfaces (colored walls, fabric, green grass).
+        if sat > 40.0 or val < 45.0:
             return image_bgr.copy()
 
         # Default: target the patch's OWN mean, i.e. remove color cast only (gains bounded

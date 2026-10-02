@@ -215,9 +215,11 @@ def extract_background_white_from_bgr(
         return None
 
     # Keep only near-neutral pixels (low saturation, decent brightness)
+    # S < 80: warm-tinted white paper under fluorescent/incandescent light reaches S=67-75
+    # We only want to exclude clearly colored surfaces (S > 80)
     hsv = cv2.cvtColor(pixels_bgr.reshape(-1, 1, 3).astype(np.uint8),
                        cv2.COLOR_BGR2HSV).reshape(-1, 3)
-    neutral_mask = (hsv[:, 1] < 60) & (hsv[:, 2] > 60)
+    neutral_mask = (hsv[:, 1] < 80) & (hsv[:, 2] > 60)
     if int(np.sum(neutral_mask)) > 30:
         pixels_bgr = pixels_bgr[neutral_mask]
 
