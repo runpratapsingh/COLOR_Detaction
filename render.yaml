@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: chemical-cv-service
+    runtime: docker
+    dockerfilePath: ./cv-service/Dockerfile
+    dockerContext: ./cv-service
+    plan: free
+    region: singapore # or oregon / frankfurt
+    envVars:
+      - key: DATABASE_URL
+        value: mysql+pymysql://4Vh7yGPJLr96uHV.root:QE470OJBkv3MLIs1@gateway01.ap-southeast-1.prod.aws.tidbcloud.com:4000/chemical_color
+      - key: PROJECT_NAME
+        value: Chemical Liquid Color Detection System
+      - key: API_V1_STR
+        value: /api/v1
