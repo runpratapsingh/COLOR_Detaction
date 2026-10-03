@@ -180,8 +180,7 @@ export const InAppCameraModal: React.FC<InAppCameraModalProps> = ({
 
           {/* Technical Alignment Reticle Frame */}
           <TechnicalGuideOverlay
-            statusText="ALIGN BOTTLE INSIDE FRAME • WHITE BACKGROUND"
-            isReadyToCapture={!isCapturing}
+            status="waiting"
             onOpenInstructions={() => setShowInstructions(true)}
           />
 

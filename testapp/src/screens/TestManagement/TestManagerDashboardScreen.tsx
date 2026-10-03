@@ -5,11 +5,12 @@ import {
   FlatList,
   Pressable,
   SafeAreaView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { JalqTheme } from '../../theme/colors';
+import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestSummary, UserSession } from '../../types/jalq';
 import { createNewTestVersion, fetchChemicalTests, publishChemicalTest } from '../../services/jalqApi';
 
@@ -142,7 +143,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
                 styles.statusBadgeText,
                 isPublished ? styles.textPublished : styles.textDraft,
               ]}>
-              {isPublished ? 'Published' : 'Draft'}
+              {isPublished ? '● Published' : '○ Draft'}
             </Text>
           </View>
         </View>
@@ -156,11 +157,11 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
         {/* Specs Overview */}
         <View style={styles.metaRow}>
           <Text style={styles.metaText}>
-            Wait time: {Math.round(item.incubation_seconds / 60)} min
+            ⏱ Wait: {Math.round(item.incubation_seconds / 60)} min
           </Text>
           <Text style={styles.metaDot}>•</Text>
           <Text style={styles.metaText}>
-            {item.standards_count} standards
+            📊 {item.standards_count} standards
           </Text>
         </View>
 
@@ -170,7 +171,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
             style={styles.standardsBtn}
             onPress={() => onManageStandards(item.test_id)}>
             <Text style={styles.standardsBtnText}>
-              Standards ({item.standards_count})
+              Manage Standards ({item.standards_count})
             </Text>
           </Pressable>
 
@@ -189,9 +190,9 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
               disabled={isBusy}
               onPress={() => handlePublish(item.test_id)}>
               {isBusy ? (
-                <ActivityIndicator size="small" color="#059669" />
+                <ActivityIndicator size="small" color={JalqTheme.colors.emerald} />
               ) : (
-                <Text style={styles.publishLinkText}>✓ Publish Test</Text>
+                <Text style={styles.publishLinkText}>✓ Publish Live</Text>
               )}
             </Pressable>
           ) : (
@@ -206,7 +207,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
           <Pressable
             style={styles.previewLinkBtn}
             onPress={() => onPreviewAsTester(item.test_id)}>
-            <Text style={styles.previewLinkText}>Preview as Tester ›</Text>
+            <Text style={styles.previewLinkText}>Tester Preview ›</Text>
           </Pressable>
         </View>
       </View>
@@ -215,11 +216,13 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+
       {/* Top Manager Banner */}
       <View style={styles.topBar}>
         <View>
           <View style={styles.roleHeaderRow}>
-            <Text style={styles.roleTag}>Test Manager</Text>
+            <Text style={styles.roleTag}>TEST MANAGER CONSOLE</Text>
           </View>
           <Text style={styles.techName}>{session.technicianName}</Text>
           <Text style={styles.facilityText}>{session.facility}</Text>
@@ -227,7 +230,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
 
         <View style={styles.topActionsRow}>
           <Pressable style={styles.switchModeBtn} onPress={onSwitchToTesterMode}>
-            <Text style={styles.switchModeText}>Tester View</Text>
+            <Text style={styles.switchModeText}>Field Tester</Text>
           </Pressable>
           <Pressable style={styles.logoutBtn} onPress={onLogout}>
             <Text style={styles.logoutText}>Sign Out</Text>
@@ -264,7 +267,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
         </View>
 
         <Pressable style={styles.createTestBtn} onPress={onCreateTest}>
-          <Text style={styles.createTestBtnText}>+ Create Test</Text>
+          <Text style={styles.createTestBtnText}>+ New Test</Text>
         </Pressable>
       </View>
 
@@ -280,14 +283,16 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
           keyExtractor={(item) => item.test_id}
           renderItem={renderTestCard}
           contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>🧪</Text>
               <Text style={styles.emptyTitle}>No chemical tests found</Text>
               <Text style={styles.emptyDesc}>
                 Create your first chemical assay and configure calibrated reference standards.
               </Text>
               <Pressable style={styles.createTestEmptyBtn} onPress={onCreateTest}>
-                <Text style={styles.createTestBtnText}>+ Create New Chemical Test</Text>
+                <Text style={styles.createTestEmptyBtnText}>+ Create New Chemical Test</Text>
               </Pressable>
             </View>
           }
@@ -300,34 +305,35 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: JalqTheme.colors.bgDark,
   },
   topBar: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: JalqTheme.spacing.base,
+    paddingVertical: JalqTheme.spacing.md,
+    borderBottomColor: JalqTheme.colors.borderSubtle,
     borderBottomWidth: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: JalqTheme.colors.bgCard,
   },
   roleHeaderRow: {
     marginBottom: 2,
   },
   roleTag: {
-    color: '#0284C7',
-    fontSize: 12,
-    fontWeight: '700',
+    color: JalqTheme.colors.primary,
+    fontSize: 10,
+    fontWeight: '800',
+    letterSpacing: 0.6,
   },
   techName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
   },
   facilityText: {
-    fontSize: 12,
-    color: '#64748B',
+    fontSize: 11,
+    color: JalqTheme.colors.textSecondary,
     marginTop: 2,
   },
   topActionsRow: {
@@ -335,26 +341,28 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   switchModeBtn: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    borderColor: JalqTheme.colors.borderFocus,
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
   },
   switchModeText: {
-    color: '#059669',
+    color: JalqTheme.colors.primary,
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   logoutBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: JalqTheme.colors.bgMuted,
+    borderColor: JalqTheme.colors.borderDefault,
+    borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
   },
   logoutText: {
-    color: '#475569',
+    color: JalqTheme.colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
@@ -362,11 +370,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: JalqTheme.spacing.base,
+    paddingVertical: JalqTheme.spacing.md,
+    borderBottomColor: JalqTheme.colors.borderSubtle,
     borderBottomWidth: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: JalqTheme.colors.bgCard,
   },
   filterRow: {
     flexDirection: 'row',
@@ -375,47 +383,47 @@ const styles = StyleSheet.create({
   filterChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    borderRadius: JalqTheme.radius.pill,
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderWidth: 1,
+    borderColor: JalqTheme.colors.borderSubtle,
   },
   filterChipActive: {
-    backgroundColor: '#E0F2FE',
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    borderColor: JalqTheme.colors.borderFocus,
   },
   filterChipText: {
-    color: '#64748B',
+    color: JalqTheme.colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
   },
   filterChipTextActive: {
-    color: '#0284C7',
+    color: JalqTheme.colors.primary,
     fontWeight: '700',
   },
   createTestBtn: {
-    backgroundColor: '#0284C7',
+    backgroundColor: JalqTheme.colors.primary,
     paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 7,
+    borderRadius: JalqTheme.radius.md,
   },
   createTestBtnText: {
-    color: '#FFFFFF',
+    color: JalqTheme.colors.textInverse,
     fontSize: 12,
     fontWeight: '700',
   },
   listContent: {
-    padding: 16,
-    gap: 14,
+    padding: JalqTheme.spacing.base,
+    gap: JalqTheme.spacing.md,
+    paddingBottom: 32,
   },
   testCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
+    backgroundColor: JalqTheme.colors.bgCard,
+    borderColor: JalqTheme.colors.borderSubtle,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 1,
+    borderRadius: JalqTheme.radius.lg,
+    padding: JalqTheme.spacing.base,
+    ...JalqTheme.shadow.sm,
   },
   cardHeaderRow: {
     flexDirection: 'row',
@@ -429,37 +437,40 @@ const styles = StyleSheet.create({
   testTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
   },
   testSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: JalqTheme.colors.textSecondary,
     marginTop: 2,
   },
   statusBadge: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: JalqTheme.radius.pill,
+    borderWidth: 1,
   },
   statusPublished: {
-    backgroundColor: '#ECFDF5',
+    backgroundColor: JalqTheme.colors.badgeSuccessBg,
+    borderColor: JalqTheme.colors.badgeSuccessBorder,
   },
   statusDraft: {
-    backgroundColor: '#FFFBEB',
+    backgroundColor: JalqTheme.colors.badgeWarningBg,
+    borderColor: JalqTheme.colors.badgeWarningBorder,
   },
   statusBadgeText: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
   textPublished: {
-    color: '#059669',
+    color: JalqTheme.colors.badgeSuccessText,
   },
   textDraft: {
-    color: '#D97706',
+    color: JalqTheme.colors.badgeWarningText,
   },
   testDesc: {
     fontSize: 13,
-    color: '#475569',
+    color: JalqTheme.colors.textSecondary,
     marginTop: 8,
     lineHeight: 18,
   },
@@ -471,11 +482,12 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
-    color: '#64748B',
+    color: JalqTheme.colors.textMuted,
+    fontWeight: '500',
   },
   metaDot: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: JalqTheme.colors.borderDefault,
   },
   actionRow: {
     flexDirection: 'row',
@@ -484,29 +496,29 @@ const styles = StyleSheet.create({
   },
   standardsBtn: {
     flex: 1,
-    backgroundColor: '#0284C7',
+    backgroundColor: JalqTheme.colors.primary,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   standardsBtnText: {
-    color: '#FFFFFF',
+    color: JalqTheme.colors.textInverse,
     fontWeight: '700',
     fontSize: 13,
   },
   editBtn: {
     flex: 1,
-    backgroundColor: '#F1F5F9',
-    borderColor: '#E2E8F0',
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderColor: JalqTheme.colors.borderDefault,
     borderWidth: 1,
     paddingVertical: 10,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   editBtnText: {
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
     fontWeight: '600',
     fontSize: 13,
   },
@@ -517,15 +529,15 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: JalqTheme.colors.borderSubtle,
   },
   publishLinkBtn: {
     paddingVertical: 4,
     paddingHorizontal: 6,
   },
   publishLinkText: {
-    color: '#059669',
-    fontWeight: '600',
+    color: JalqTheme.colors.emerald,
+    fontWeight: '700',
     fontSize: 12,
   },
   newVersionLinkBtn: {
@@ -533,8 +545,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   newVersionLinkText: {
-    color: '#D97706',
-    fontWeight: '600',
+    color: JalqTheme.colors.amber,
+    fontWeight: '700',
     fontSize: 12,
   },
   previewLinkBtn: {
@@ -542,7 +554,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
   previewLinkText: {
-    color: '#64748B',
+    color: JalqTheme.colors.primary,
     fontWeight: '600',
     fontSize: 12,
   },
@@ -556,7 +568,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    color: '#64748B',
+    color: JalqTheme.colors.textSecondary,
     fontSize: 13,
     marginTop: 12,
   },
@@ -565,23 +577,29 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
     paddingHorizontal: 20,
   },
+  emptyIcon: {
+    fontSize: 40,
+    marginBottom: 8,
+  },
   emptyTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
   },
   emptyDesc: {
     fontSize: 13,
-    color: '#64748B',
+    color: JalqTheme.colors.textSecondary,
     textAlign: 'center',
     marginTop: 6,
     marginBottom: 20,
     lineHeight: 18,
   },
   createTestEmptyBtn: {
-    backgroundColor: '#0284C7',
-    paddingHorizontal: 18,
+    ...DS.primaryBtn,
+    paddingHorizontal: 20,
     paddingVertical: 12,
-    borderRadius: 8,
+  },
+  createTestEmptyBtnText: {
+    ...DS.primaryBtnText,
   },
 });

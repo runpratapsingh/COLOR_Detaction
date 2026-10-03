@@ -7,12 +7,13 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { JalqTheme } from '../../theme/colors';
+import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, ProcedureStep, Reagent, UserSession } from '../../types/jalq';
 import { createChemicalTest, fetchTestDetails, updateChemicalTest } from '../../services/jalqApi';
 import { HeaderBackButton } from '../../components';
@@ -98,7 +99,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
           setSampleType(detail.sample_type);
           setUnit(detail.unit);
           setIncubationMinutes(String(Math.round(detail.incubation_seconds / 60)));
-          setIncubationToleranceSecs(String(detail.incubation_tolerance_seconds || 60));
+          setIncubationToleranceSecs(String(detail.incubation_tolerance_seconds));
           setDescription(detail.description || '');
           setSampleRequirements(detail.sample_requirements || '');
           setVideoUrl(detail.video_url || '');
@@ -110,9 +111,9 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
             setReagents(detail.reagents);
           }
         }
-      } catch (err) {
+      } catch (err: any) {
         if (isMounted) {
-          console.warn('Failed to load test details:', err);
+          Alert.alert('Load Error', err.message || 'Failed to load test details.');
         }
       } finally {
         if (isMounted) {
@@ -131,18 +132,17 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
 
   const handleSave = async () => {
     if (!code.trim()) {
-      Alert.alert('Validation Error', 'Please enter a unique Test ID (e.g. NITRATE_001).');
+      Alert.alert('Validation Error', 'Test Code / ID is required (e.g. NITRATE_001).');
       return;
     }
     if (!name.trim()) {
-      Alert.alert('Validation Error', 'Please enter a Test Name.');
+      Alert.alert('Validation Error', 'Test Name is required.');
       return;
     }
+    const incSecs = Math.max(10, parseInt(incubationMinutes, 10) * 60 || 300);
+    const incTol = Math.max(10, parseInt(incubationToleranceSecs, 10) || 60);
 
-    const incSecs = Math.max(10, (parseInt(incubationMinutes, 10) || 5) * 60);
-    const incTol = Math.max(5, parseInt(incubationToleranceSecs, 10) || 60);
-
-    const payload: Partial<ChemicalTestDetail> = {
+    const payload = {
       test_id: code.trim().toUpperCase(),
       name: name.trim(),
       sample_type: sampleType.trim(),
@@ -177,6 +177,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={JalqTheme.colors.primary} />
           <Text style={styles.loadingText}>Loading test parameters...</Text>
@@ -187,10 +188,12 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+
       {/* Top Header */}
       <View style={styles.topBar}>
         <HeaderBackButton onPress={onBack} label="Cancel" />
-        <Text style={styles.navTitle}>{isEditing ? 'Edit Chemical Test' : 'Create Chemical Test'}</Text>
+        <Text style={styles.navTitle}>{isEditing ? 'Edit Protocol' : 'New Chemical Assay'}</Text>
         <Pressable
           style={[styles.saveTopBtn, saving && styles.btnDisabled]}
           disabled={saving}
@@ -202,72 +205,72 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
           {/* Card 1: Core Identification */}
           <View style={styles.card}>
             <Text style={styles.cardHeaderTitle}>General Information</Text>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Test code / ID</Text>
+              <Text style={styles.fieldLabel}>Test Code / ID</Text>
               <TextInput
                 style={[styles.input, isEditing && styles.inputReadonly]}
                 value={code}
                 onChangeText={setCode}
                 placeholder="e.g. NITRATE_001"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={JalqTheme.colors.textMuted}
                 autoCapitalize="characters"
                 editable={!isEditing}
               />
               <Text style={styles.fieldHint}>
-                Unique code for identification (e.g. {code || 'CODE'})
+                Unique identifier across calibration sets
               </Text>
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Test name</Text>
+              <Text style={styles.fieldLabel}>Test Name</Text>
               <TextInput
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
                 placeholder="e.g. Nitrate (NO3-) Concentration Assay"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={JalqTheme.colors.textMuted}
               />
             </View>
 
             <View style={styles.rowTwo}>
               <View style={[styles.fieldGroup, styles.flex]}>
-                <Text style={styles.fieldLabel}>Sample type</Text>
+                <Text style={styles.fieldLabel}>Sample Type</Text>
                 <TextInput
                   style={styles.input}
                   value={sampleType}
                   onChangeText={setSampleType}
                   placeholder="Water, Soil, etc."
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={JalqTheme.colors.textMuted}
                 />
               </View>
 
               <View style={[styles.fieldGroup, styles.flex]}>
-                <Text style={styles.fieldLabel}>Reporting unit</Text>
+                <Text style={styles.fieldLabel}>Reporting Unit</Text>
                 <TextInput
                   style={styles.input}
                   value={unit}
                   onChangeText={setUnit}
-                  placeholder="mg/L, ppm, %"
-                  placeholderTextColor="#94A3B8"
+                  placeholder="mg/L, ppm, etc."
+                  placeholderTextColor={JalqTheme.colors.textMuted}
                 />
               </View>
             </View>
 
             <View style={styles.rowTwo}>
               <View style={[styles.fieldGroup, styles.flex]}>
-                <Text style={styles.fieldLabel}>Wait time (minutes)</Text>
+                <Text style={styles.fieldLabel}>Incubation (minutes)</Text>
                 <TextInput
                   style={styles.input}
                   value={incubationMinutes}
                   onChangeText={setIncubationMinutes}
-                  keyboardType="numeric"
                   placeholder="5"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={JalqTheme.colors.textMuted}
+                  keyboardType="numeric"
                 />
               </View>
 
@@ -277,34 +280,34 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
                   style={styles.input}
                   value={incubationToleranceSecs}
                   onChangeText={setIncubationToleranceSecs}
-                  keyboardType="numeric"
                   placeholder="60"
-                  placeholderTextColor="#94A3B8"
+                  placeholderTextColor={JalqTheme.colors.textMuted}
+                  keyboardType="numeric"
                 />
               </View>
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Description & notes</Text>
+              <Text style={styles.fieldLabel}>Protocol Description</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={description}
                 onChangeText={setDescription}
-                placeholder="Describe reaction mechanism, indicator chemistry, or targeted analyte..."
-                placeholderTextColor="#94A3B8"
+                placeholder="Brief summary of chemical test methodology and target parameter..."
+                placeholderTextColor={JalqTheme.colors.textMuted}
                 multiline
                 numberOfLines={3}
               />
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Sample requirements</Text>
+              <Text style={styles.fieldLabel}>Sample Requirements</Text>
               <TextInput
                 style={styles.input}
                 value={sampleRequirements}
                 onChangeText={setSampleRequirements}
                 placeholder="e.g. 10 mL fresh water sample in clean container"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={JalqTheme.colors.textMuted}
               />
             </View>
           </View>
@@ -314,25 +317,25 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
             <Text style={styles.cardHeaderTitle}>Demonstration & Safety</Text>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Procedure video URL (optional)</Text>
+              <Text style={styles.fieldLabel}>Procedure Video URL (Optional)</Text>
               <TextInput
                 style={styles.input}
                 value={videoUrl}
                 onChangeText={setVideoUrl}
                 placeholder="https://... video stream or MP4 URL"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={JalqTheme.colors.textMuted}
                 autoCapitalize="none"
               />
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Operator safety instructions</Text>
+              <Text style={styles.fieldLabel}>Safety Instructions</Text>
               <TextInput
                 style={[styles.input, styles.textArea]}
                 value={notes}
                 onChangeText={setNotes}
                 placeholder="Wear safety glasses. Discard reacted solution responsibly according to protocol."
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={JalqTheme.colors.textMuted}
                 multiline
                 numberOfLines={2}
               />
@@ -354,7 +357,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
                 <View style={styles.stepInfoCol}>
                   <Text style={styles.stepTitleText}>{step.title}</Text>
                   <Text style={styles.stepInstText}>{step.instruction}</Text>
-                  {step.tip && <Text style={styles.stepTipText}>Tip: {step.tip}</Text>}
+                  {step.tip && <Text style={styles.stepTipText}>💡 Tip: {step.tip}</Text>}
                 </View>
               </View>
             ))}
@@ -366,10 +369,10 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
             disabled={saving}
             onPress={handleSave}>
             {saving ? (
-              <ActivityIndicator color="#FFFFFF" />
+              <ActivityIndicator color={JalqTheme.colors.textInverse} />
             ) : (
               <Text style={styles.saveBottomBtnText}>
-                {isEditing ? 'Save Changes' : 'Create Test & Continue to Standards'}
+                {isEditing ? 'Save Changes' : 'Create Test & Configure Standards →'}
               </Text>
             )}
           </Pressable>
@@ -382,7 +385,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: JalqTheme.colors.bgDark,
   },
   flex: {
     flex: 1,
@@ -391,93 +394,71 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomColor: '#E2E8F0',
+    paddingHorizontal: JalqTheme.spacing.base,
+    paddingVertical: JalqTheme.spacing.md,
+    borderBottomColor: JalqTheme.colors.borderSubtle,
     borderBottomWidth: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  backBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  backText: {
-    color: '#0F172A',
-    fontSize: 13,
-    fontWeight: '600',
+    backgroundColor: JalqTheme.colors.bgCard,
   },
   navTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
   },
   saveTopBtn: {
-    backgroundColor: '#0284C7',
+    backgroundColor: JalqTheme.colors.primary,
     paddingHorizontal: 14,
     paddingVertical: 7,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
   },
   saveTopBtnText: {
-    color: '#FFFFFF',
-    fontSize: 13,
+    color: JalqTheme.colors.textInverse,
+    fontSize: 12,
     fontWeight: '700',
   },
   scrollContent: {
-    padding: 16,
-    gap: 16,
+    padding: JalqTheme.spacing.base,
+    gap: JalqTheme.spacing.md,
+    paddingBottom: 40,
   },
   card: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
+    backgroundColor: JalqTheme.colors.bgCard,
+    borderColor: JalqTheme.colors.borderSubtle,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 4,
-    elevation: 1,
+    borderRadius: JalqTheme.radius.lg,
+    padding: JalqTheme.spacing.base,
+    ...JalqTheme.shadow.sm,
   },
   cardHeaderTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
     marginBottom: 4,
   },
   cardHeaderSubtitle: {
     fontSize: 12,
-    color: '#64748B',
+    color: JalqTheme.colors.textSecondary,
     marginBottom: 14,
   },
   fieldGroup: {
     marginBottom: 14,
   },
   fieldLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#334155',
+    ...DS.fieldLabel,
     marginBottom: 6,
   },
   fieldHint: {
     fontSize: 11,
-    color: '#94A3B8',
+    color: JalqTheme.colors.textMuted,
     marginTop: 4,
   },
   input: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    color: '#0F172A',
-    fontSize: 14,
+    ...DS.input,
   },
   inputReadonly: {
-    backgroundColor: '#F1F5F9',
-    color: '#94A3B8',
+    backgroundColor: JalqTheme.colors.bgMuted,
+    color: JalqTheme.colors.textSecondary,
+    borderColor: JalqTheme.colors.borderSubtle,
   },
   textArea: {
     minHeight: 70,
@@ -489,9 +470,11 @@ const styles = StyleSheet.create({
   },
   stepItemRow: {
     flexDirection: 'row',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderColor: JalqTheme.colors.borderSubtle,
+    borderWidth: 1,
     padding: 12,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
     marginBottom: 8,
     gap: 10,
   },
@@ -499,14 +482,14 @@ const styles = StyleSheet.create({
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: '#0284C7',
+    backgroundColor: JalqTheme.colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepNumText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 12,
+    color: JalqTheme.colors.textInverse,
+    fontWeight: '800',
+    fontSize: 11,
   },
   stepInfoCol: {
     flex: 1,
@@ -514,33 +497,29 @@ const styles = StyleSheet.create({
   stepTitleText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
   },
   stepInstText: {
     fontSize: 12,
-    color: '#475569',
+    color: JalqTheme.colors.textSecondary,
     marginTop: 2,
     lineHeight: 16,
   },
   stepTipText: {
     fontSize: 11,
-    color: '#059669',
+    color: JalqTheme.colors.amber,
     marginTop: 4,
   },
   saveBottomBtn: {
-    backgroundColor: '#0284C7',
+    ...DS.primaryBtn,
     paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
     marginBottom: 24,
   },
   saveBottomBtnText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontWeight: '700',
+    ...DS.primaryBtnText,
   },
   btnDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
   centerContainer: {
     flex: 1,
@@ -549,7 +528,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   loadingText: {
-    color: '#64748B',
+    color: JalqTheme.colors.textSecondary,
     fontSize: 13,
     marginTop: 12,
   },

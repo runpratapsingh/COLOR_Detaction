@@ -4,6 +4,7 @@ import {
   Platform,
   Pressable,
   SafeAreaView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
@@ -105,6 +106,7 @@ export const IncubationScreen: React.FC<IncubationScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
       {/* Top Bar */}
       <View style={styles.navBar}>
         <HeaderBackButton onPress={onBack} label="Details" />
@@ -232,200 +234,82 @@ export const IncubationScreen: React.FC<IncubationScreenProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#F8FAFC',
-  },
+  container: { flex: 1, backgroundColor: JalqTheme.colors.bgDark },
   navBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomColor: '#E2E8F0',
-    borderBottomWidth: 1,
-    backgroundColor: '#FFFFFF',
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 16, paddingVertical: 12,
+    borderBottomColor: JalqTheme.colors.borderSubtle, borderBottomWidth: 1,
+    backgroundColor: JalqTheme.colors.bgCard,
   },
-  backBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    backgroundColor: '#F1F5F9',
-  },
-  backText: {
-    color: '#0284C7',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  navTitle: {
-    color: '#0F172A',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  navPlaceholder: {
-    width: 60,
-  },
-  content: {
-    flex: 1,
-    padding: 20,
-    justifyContent: 'space-between',
-  },
+  backBtn: { paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: JalqTheme.colors.bgMuted },
+  backText: { color: JalqTheme.colors.primary, fontSize: 12, fontWeight: '600' },
+  navTitle: { color: JalqTheme.colors.textPrimary, fontWeight: '700', fontSize: 15 },
+  navPlaceholder: { width: 60 },
+  content: { flex: 1, padding: 20, justifyContent: 'space-between' },
+
+  // State badge
   stateBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 16,
-    borderWidth: 1,
-    gap: 8,
+    flexDirection: 'row', alignItems: 'center', alignSelf: 'center',
+    paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, borderWidth: 1, gap: 8,
   },
-  stateBadgeIdle: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#E2E8F0',
-  },
-  stateBadgeRunning: {
-    backgroundColor: '#EFF6FF',
-    borderColor: '#BFDBFE',
-  },
-  stateBadgeCompleted: {
-    backgroundColor: '#ECFDF5',
-    borderColor: '#A7F3D0',
-  },
-  stateDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  dotIdle: { backgroundColor: '#94A3B8' },
-  dotRunning: { backgroundColor: '#0284C7' },
-  dotCompleted: { backgroundColor: '#059669' },
-  stateBadgeText: {
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  textIdle: { color: '#64748B' },
-  textRunning: { color: '#0284C7' },
-  textCompleted: { color: '#059669' },
+  stateBadgeIdle: { backgroundColor: JalqTheme.colors.bgMuted, borderColor: JalqTheme.colors.borderDefault },
+  stateBadgeRunning: { backgroundColor: JalqTheme.colors.badgeInfoBg, borderColor: JalqTheme.colors.badgeInfoBorder },
+  stateBadgeCompleted: { backgroundColor: JalqTheme.colors.badgeSuccessBg, borderColor: JalqTheme.colors.badgeSuccessBorder },
+  stateDot: { width: 8, height: 8, borderRadius: 4 },
+  dotIdle: { backgroundColor: JalqTheme.colors.textMuted },
+  dotRunning: { backgroundColor: JalqTheme.colors.primary },
+  dotCompleted: { backgroundColor: JalqTheme.colors.emerald },
+  stateBadgeText: { fontSize: 12, fontWeight: '600' },
+  textIdle: { color: JalqTheme.colors.textSecondary },
+  textRunning: { color: JalqTheme.colors.badgeInfoText },
+  textCompleted: { color: JalqTheme.colors.badgeSuccessText },
+
+  // Timer card
   timerCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    borderRadius: 14,
-    padding: 24,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOpacity: 0.03,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    backgroundColor: JalqTheme.colors.bgCard, borderColor: JalqTheme.colors.borderSubtle,
+    borderWidth: 1, borderRadius: JalqTheme.radius.xl, padding: 24, alignItems: 'center',
+    ...JalqTheme.shadow.md,
   },
-  timerLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 6,
-  },
+  timerLabel: { fontSize: 12, fontWeight: '600', color: JalqTheme.colors.textSecondary, marginBottom: 6, letterSpacing: 0.8, textTransform: 'uppercase' },
   digitalClock: {
-    fontSize: 52,
-    fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: 1,
-    marginBottom: 16,
+    fontSize: 56, fontWeight: '800', color: JalqTheme.colors.primary,
+    letterSpacing: 2, marginBottom: 18, fontVariant: ['tabular-nums'],
   },
-  digitalClockCompleted: {
-    color: '#059669',
-  },
-  progressBarTrack: {
-    width: '100%',
-    height: 6,
-    backgroundColor: '#F1F5F9',
-    borderRadius: 3,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressBarFill: {
-    height: '100%',
-    borderRadius: 3,
-  },
-  progressPercentText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#64748B',
-  },
+  digitalClockCompleted: { color: JalqTheme.colors.emerald },
+  progressBarTrack: { width: '100%', height: 6, backgroundColor: JalqTheme.colors.bgMuted, borderRadius: 3, overflow: 'hidden', marginBottom: 8 },
+  progressBarFill: { height: '100%', borderRadius: 3 },
+  progressPercentText: { fontSize: 12, fontWeight: '500', color: JalqTheme.colors.textSecondary },
+
+  // Instruction card
   instructionCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 16,
+    backgroundColor: JalqTheme.colors.bgCard, borderColor: JalqTheme.colors.borderSubtle,
+    borderWidth: 1, borderRadius: JalqTheme.radius.lg, padding: 16,
   },
-  instructionHeading: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#0F172A',
-    marginBottom: 8,
-  },
-  instructionList: {
-    gap: 6,
-  },
-  instructionItem: {
-    fontSize: 13,
-    color: '#475569',
-    lineHeight: 18,
-  },
-  buttonContainer: {
-    gap: 12,
-    alignItems: 'center',
-  },
+  instructionHeading: { fontSize: 13, fontWeight: '700', color: JalqTheme.colors.textSecondary, marginBottom: 10, letterSpacing: 0.8, textTransform: 'uppercase' },
+  instructionList: { gap: 8 },
+  instructionItem: { fontSize: 13, color: JalqTheme.colors.textSecondary, lineHeight: 19 },
+
+  // Buttons
+  buttonContainer: { gap: 12, alignItems: 'center' },
   primaryActionBtn: {
-    width: '100%',
-    backgroundColor: '#0284C7',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%', backgroundColor: JalqTheme.colors.primary,
+    paddingVertical: 15, borderRadius: JalqTheme.radius.lg, alignItems: 'center',
+    ...JalqTheme.shadow.cyan,
   },
-  primaryActionBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
+  primaryActionBtnText: { color: JalqTheme.colors.textInverse, fontWeight: '700', fontSize: 15 },
   pauseBtn: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%', backgroundColor: JalqTheme.colors.bgCard,
+    borderColor: JalqTheme.colors.borderDefault, borderWidth: 1,
+    paddingVertical: 14, borderRadius: JalqTheme.radius.lg, alignItems: 'center',
   },
-  pauseBtnText: {
-    color: '#0F172A',
-    fontWeight: '600',
-    fontSize: 15,
-  },
+  pauseBtnText: { color: JalqTheme.colors.textPrimary, fontWeight: '600', fontSize: 15 },
   completedBtn: {
-    width: '100%',
-    backgroundColor: '#059669',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: '100%', backgroundColor: JalqTheme.colors.emerald,
+    paddingVertical: 15, borderRadius: JalqTheme.radius.lg, alignItems: 'center',
+    ...JalqTheme.shadow.md,
   },
-  completedBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-  skipBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  skipBtnText: {
-    color: '#94A3B8',
-    fontSize: 13,
-    fontWeight: '500',
-  },
+  completedBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  skipBtn: { paddingVertical: 6, paddingHorizontal: 12 },
+  skipBtnText: { color: JalqTheme.colors.textMuted, fontSize: 13, fontWeight: '500' },
 });
+

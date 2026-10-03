@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import {
-  Image,
   Pressable,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
-import { JalqTheme } from '../../theme/colors';
+import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, JalqAnalysisResponse } from '../../types/jalq';
 
 interface ResultScreenProps {
@@ -72,14 +72,19 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+
       {/* Navigation Top Bar */}
       <View style={styles.navBar}>
         <Text style={styles.navTitle} numberOfLines={1}>
           {test.name}
         </Text>
+        <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
+          <Text style={styles.headerDoneText}>Done</Text>
+        </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Status Header Banner */}
         <View
           style={[
@@ -93,17 +98,17 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           <View style={styles.statusCol}>
             <Text style={styles.statusHeading}>
               {isRetake
-                ? 'Photo needs adjustment'
+                ? '⚠️ Photo needs adjustment'
                 : isAmbiguous
-                ? 'Borderline result'
-                : 'Test complete'}
+                ? '⚡ Borderline concentration'
+                : '✓ Analysis Complete'}
             </Text>
             <Text style={styles.statusSub}>
               {isRetake
                 ? 'The photo could not be reliably measured. Please review suggestions below.'
                 : isAmbiguous
-                ? 'The color is between two standard levels.'
-                : 'Liquid color successfully measured and verified.'}
+                ? 'The color falls between two calibrated standard levels.'
+                : 'Liquid spectrum matched against calibrated curve.'}
             </Text>
           </View>
         </View>
@@ -145,7 +150,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             {/* Primary Winner Match Card */}
             <View style={styles.winnerCard}>
               <View style={styles.winnerHeader}>
-                <Text style={styles.winnerTag}>Measured Result</Text>
+                <Text style={styles.winnerTag}>MEASURED ASSAY RESULT</Text>
                 <View
                   style={[
                     styles.matchQualityPill,
@@ -175,7 +180,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
               {/* Main Reading */}
               <View style={styles.estimatedConcBox}>
-                <Text style={styles.estimatedConcLabel}>Estimated concentration</Text>
+                <Text style={styles.estimatedConcLabel}>Estimated Concentration</Text>
                 <Text style={styles.estimatedConcValue}>
                   {rangeStatus === 'ABOVE_CALIBRATED_RANGE'
                     ? rangeLabel || `> ${matchedStandard?.concentration ?? '4'} ${matchedStandard?.unit ?? 'mg/L'}`
@@ -183,13 +188,13 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                     ? rangeLabel || `< ${matchedStandard?.concentration ?? '0'} ${matchedStandard?.unit ?? 'mg/L'}`
                     : `${estimatedConcentration !== undefined ? Number(estimatedConcentration).toFixed(2) : '—'} ${matchedStandard?.unit ?? 'mg/L'}`}
                 </Text>
-                <Text style={styles.winnerLevel}>Matched: {bestLevel}</Text>
+                <Text style={styles.winnerLevel}>Standard: {bestLevel}</Text>
               </View>
 
               {/* Key Metrics Row */}
               <View style={styles.metricRow}>
                 <View style={styles.metricBox}>
-                  <Text style={styles.metricLabel}>Match accuracy</Text>
+                  <Text style={styles.metricLabel}>Match Accuracy</Text>
                   <Text style={styles.metricVal}>
                     {Math.max(70, Math.min(99, Math.round(100 - deltaE * 4)))}%
                   </Text>
@@ -197,26 +202,26 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 </View>
 
                 <View style={styles.metricBox}>
-                  <Text style={styles.metricLabel}>Image clarity</Text>
+                  <Text style={styles.metricLabel}>Image Clarity</Text>
                   <Text style={styles.metricVal}>{Math.round(quality.overall)}%</Text>
                   <Text style={styles.metricHint}>Sharpness</Text>
                 </View>
 
                 <View style={styles.metricBox}>
-                  <Text style={styles.metricLabel}>Closest level</Text>
+                  <Text style={styles.metricLabel}>Calibrated</Text>
                   <Text style={styles.metricVal}>
                     {matchedStandard?.concentration ?? '—'} {matchedStandard?.unit ?? 'mg/L'}
                   </Text>
-                  <Text style={styles.metricHint}>Standard</Text>
+                  <Text style={styles.metricHint}>Reference</Text>
                 </View>
               </View>
             </View>
 
             {/* Detected Liquid Color vs Standard Swatches */}
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Color Comparison</Text>
+              <Text style={styles.sectionTitle}>Spectra Comparison</Text>
               <Text style={styles.sectionDesc}>
-                Visual comparison between your liquid sample and the closest calibrated standard:
+                Visual comparison between your liquid sample and closest calibrated standard:
               </Text>
 
               <View style={styles.colorComparisonRow}>
@@ -225,11 +230,13 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                   <View
                     style={[styles.colorSwatch, { backgroundColor: detectedHex }]}
                   />
-                  <Text style={styles.colorBlockLabel}>Your sample</Text>
+                  <Text style={styles.colorBlockLabel}>Your Sample</Text>
                   <Text style={styles.colorBlockHex}>{detectedHex}</Text>
                 </View>
 
-                <Text style={styles.vsText}>vs</Text>
+                <View style={styles.vsBadge}>
+                  <Text style={styles.vsText}>VS</Text>
+                </View>
 
                 {/* Matched Standard Color */}
                 <View style={styles.colorBlock}>
@@ -245,7 +252,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                       },
                     ]}
                   />
-                  <Text style={styles.colorBlockLabel}>Matched standard</Text>
+                  <Text style={styles.colorBlockLabel}>Calibrated Standard</Text>
                   <Text style={styles.colorBlockHex}>
                     {matchedStandard?.hex || detectedHex}
                   </Text>
@@ -255,9 +262,9 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
             {/* Compare Standards Ladder */}
             <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Reference Color Scale</Text>
+              <Text style={styles.sectionTitle}>Calibrated Curve Standards</Text>
               <Text style={styles.sectionDesc}>
-                All standard concentration levels for this test:
+                Concentration steps for {test.name}:
               </Text>
 
               <View style={styles.standardsLadder}>
@@ -282,7 +289,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                             <View style={styles.ladderTitleRow}>
                               <Text style={styles.ladderName}>{std.name}</Text>
                               {isWinner && (
-                                <Text style={styles.winnerMarker}>Your match</Text>
+                                <Text style={styles.winnerMarker}>✓ Best Match</Text>
                               )}
                             </View>
 
@@ -293,7 +300,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                                   styles.distanceBarFill,
                                   {
                                     width: `${matchPct}%`,
-                                    backgroundColor: isWinner ? '#059669' : '#0284C7',
+                                    backgroundColor: isWinner ? JalqTheme.colors.emerald : JalqTheme.colors.primary,
                                   },
                                 ]}
                               />
@@ -301,7 +308,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                           </View>
 
                           <View style={styles.deltaBox}>
-                            <Text style={styles.deltaLabel}>Match</Text>
+                            <Text style={styles.deltaLabel}>Fit</Text>
                             <Text
                               style={[
                                 styles.deltaVal,
@@ -333,7 +340,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 style={styles.diagHeader}
                 onPress={() => setShowDiagnostics(!showDiagnostics)}>
                 <Text style={styles.diagTitle}>
-                  {showDiagnostics ? '▲ Hide Advanced Diagnostics' : '▼ View Advanced Diagnostics'}
+                  {showDiagnostics ? '▲ Hide Advanced Optical Diagnostics' : '▼ View Advanced Optical Diagnostics'}
                 </Text>
               </Pressable>
 
@@ -386,7 +393,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               <Text style={styles.secondaryFooterBtnText}>Retake</Text>
             </Pressable>
             <Pressable style={styles.primaryFooterBtn} onPress={onNewTest}>
-              <Text style={styles.primaryFooterBtnText}>Done</Text>
+              <Text style={styles.primaryFooterBtnText}>Complete Test ✓</Text>
             </Pressable>
           </View>
         )}
@@ -404,8 +411,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: JalqTheme.spacing.base,
+    paddingVertical: JalqTheme.spacing.md,
     borderBottomColor: JalqTheme.colors.borderSubtle,
     borderBottomWidth: 1,
     backgroundColor: JalqTheme.colors.bgCard,
@@ -413,32 +420,33 @@ const styles = StyleSheet.create({
   navTitle: {
     flex: 1,
     color: JalqTheme.colors.textPrimary,
-    fontWeight: '800',
-    fontSize: 14,
+    fontWeight: '700',
+    fontSize: 15,
   },
-  newTestBtn: {
-    paddingVertical: 6,
+  headerDoneBtn: {
+    paddingVertical: 5,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: JalqTheme.colors.primary,
+    borderRadius: JalqTheme.radius.md,
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    borderWidth: 1,
+    borderColor: JalqTheme.colors.borderFocus,
   },
-  newTestText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 11,
+  headerDoneText: {
+    color: JalqTheme.colors.primary,
+    fontWeight: '700',
+    fontSize: 12,
   },
   scrollContent: {
-    padding: 16,
-    gap: 14,
-    paddingBottom: 40,
+    padding: JalqTheme.spacing.base,
+    gap: JalqTheme.spacing.md,
+    paddingBottom: 32,
   },
   statusBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 14,
-    borderRadius: 14,
+    padding: JalqTheme.spacing.base,
+    borderRadius: JalqTheme.radius.lg,
     borderWidth: 1,
-    gap: 12,
   },
   bannerSuccess: {
     backgroundColor: JalqTheme.colors.badgeSuccessBg,
@@ -452,94 +460,84 @@ const styles = StyleSheet.create({
     backgroundColor: JalqTheme.colors.badgeErrorBg,
     borderColor: JalqTheme.colors.badgeErrorBorder,
   },
-  statusIcon: {
-    fontSize: 20,
-  },
   statusCol: {
     flex: 1,
   },
   statusHeading: {
     fontSize: 14,
-    fontWeight: '900',
+    fontWeight: '800',
     color: JalqTheme.colors.textPrimary,
   },
   statusSub: {
-    fontSize: 11,
+    fontSize: 12,
     color: JalqTheme.colors.textSecondary,
-    marginTop: 2,
+    marginTop: 3,
+    lineHeight: 16,
   },
   card: {
     backgroundColor: JalqTheme.colors.bgCard,
     borderColor: JalqTheme.colors.borderSubtle,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 16,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderRadius: JalqTheme.radius.lg,
+    padding: JalqTheme.spacing.base,
+    ...JalqTheme.shadow.sm,
   },
   winnerCard: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#BAE6FD',
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 18,
-    shadowColor: '#0F172A',
-    shadowOpacity: 0.05,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
+    backgroundColor: JalqTheme.colors.bgCard,
+    borderColor: JalqTheme.colors.primaryDark,
+    borderWidth: 1.5,
+    borderRadius: JalqTheme.radius.xl,
+    padding: JalqTheme.spacing.lg,
+    ...JalqTheme.shadow.cyan,
   },
   winnerHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 14,
   },
   winnerTag: {
     fontSize: 11,
     fontWeight: '700',
     color: JalqTheme.colors.textMuted,
-    letterSpacing: 0.5,
+    letterSpacing: 0.6,
   },
   matchQualityPill: {
     paddingHorizontal: 8,
     paddingVertical: 3,
-    borderRadius: 6,
+    borderRadius: JalqTheme.radius.pill,
     borderWidth: 1,
   },
   pillStrong: {
-    backgroundColor: '#DCFCE7',
-    borderColor: '#86EFAC',
+    backgroundColor: JalqTheme.colors.badgeSuccessBg,
+    borderColor: JalqTheme.colors.badgeSuccessBorder,
   },
   pillGood: {
-    backgroundColor: '#F0F9FF',
-    borderColor: '#BAE6FD',
+    backgroundColor: JalqTheme.colors.badgeInfoBg,
+    borderColor: JalqTheme.colors.badgeInfoBorder,
   },
   pillAmbiguous: {
-    backgroundColor: '#FEF3C7',
-    borderColor: '#FDE68A',
+    backgroundColor: JalqTheme.colors.badgeWarningBg,
+    borderColor: JalqTheme.colors.badgeWarningBorder,
   },
   matchQualityText: {
     fontSize: 10,
     fontWeight: '700',
   },
-  textStrong: { color: '#15803D' },
-  textGood: { color: '#0284C7' },
-  textAmbiguous: { color: '#B45309' },
+  textStrong: { color: JalqTheme.colors.badgeSuccessText },
+  textGood: { color: JalqTheme.colors.badgeInfoText },
+  textAmbiguous: { color: JalqTheme.colors.badgeWarningText },
   winnerLevel: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: JalqTheme.colors.textSecondary,
     marginTop: 4,
   },
   estimatedConcBox: {
-    backgroundColor: '#F0F9FF',
-    borderColor: '#BAE6FD',
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderColor: JalqTheme.colors.borderFocus,
     borderWidth: 1,
-    borderRadius: 12,
+    borderRadius: JalqTheme.radius.lg,
     padding: 16,
     alignItems: 'center',
     marginBottom: 14,
@@ -547,14 +545,15 @@ const styles = StyleSheet.create({
   estimatedConcLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#0284C7',
+    color: JalqTheme.colors.primary,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   estimatedConcValue: {
-    fontSize: 34,
-    fontWeight: '800',
-    color: '#0F172A',
+    fontSize: 32,
+    fontWeight: '900',
+    color: JalqTheme.colors.textPrimary,
   },
   metricRow: {
     flexDirection: 'row',
@@ -565,11 +564,11 @@ const styles = StyleSheet.create({
   },
   metricBox: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderColor: JalqTheme.colors.borderSubtle,
     borderWidth: 1,
-    padding: 10,
-    borderRadius: 8,
+    padding: 8,
+    borderRadius: JalqTheme.radius.md,
     alignItems: 'center',
   },
   metricLabel: {
@@ -577,10 +576,11 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: JalqTheme.colors.textMuted,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
     marginBottom: 2,
   },
   metricVal: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '800',
     color: JalqTheme.colors.textPrimary,
   },
@@ -591,102 +591,84 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: '700',
     color: JalqTheme.colors.textPrimary,
     marginBottom: 4,
   },
   sectionDesc: {
-    fontSize: 11,
+    fontSize: 12,
     color: JalqTheme.colors.textSecondary,
-    marginBottom: 14,
-    lineHeight: 15,
+    marginBottom: 12,
+    lineHeight: 16,
   },
   colorComparisonRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    marginVertical: 12,
+    marginVertical: 10,
   },
   colorBlock: {
     alignItems: 'center',
   },
   colorSwatch: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
+    width: 68,
+    height: 68,
+    borderRadius: 34,
     borderWidth: 2,
-    borderColor: '#FFFFFF',
+    borderColor: JalqTheme.colors.borderDefault,
     marginBottom: 8,
+    ...JalqTheme.shadow.sm,
   },
   colorBlockLabel: {
-    fontSize: 9,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '700',
     color: JalqTheme.colors.textMuted,
-    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   colorBlockHex: {
     fontSize: 12,
-    fontWeight: '800',
+    fontWeight: '700',
     color: JalqTheme.colors.textPrimary,
     marginTop: 2,
   },
-  vsText: {
-    fontSize: 14,
-    fontWeight: '900',
-    color: JalqTheme.colors.textMuted,
-  },
-  coordsPanel: {
-    flexDirection: 'row',
-    backgroundColor: JalqTheme.colors.bgInput,
-    borderRadius: 10,
-    padding: 12,
+  vsBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: JalqTheme.colors.bgMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: JalqTheme.colors.borderSubtle,
-    marginTop: 8,
+    borderColor: JalqTheme.colors.borderDefault,
   },
-  coordCol: {
-    flex: 1,
-  },
-  coordDivider: {
-    width: 1,
-    backgroundColor: JalqTheme.colors.borderSubtle,
-    marginHorizontal: 10,
-  },
-  coordHeader: {
-    fontSize: 8,
-    fontWeight: '800',
-    color: JalqTheme.colors.textMuted,
-    letterSpacing: 0.5,
-    marginBottom: 2,
-  },
-  coordVal: {
+  vsText: {
     fontSize: 10,
-    fontWeight: '700',
-    color: JalqTheme.colors.textPrimary,
+    fontWeight: '900',
+    color: JalqTheme.colors.textSecondary,
   },
   standardsLadder: {
-    gap: 10,
+    gap: 8,
   },
   ladderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: JalqTheme.colors.bgInput,
     padding: 10,
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.md,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
+    borderColor: JalqTheme.colors.borderSubtle,
     gap: 10,
   },
   ladderRowWinner: {
-    borderColor: '#86EFAC',
-    backgroundColor: '#ECFDF5',
+    borderColor: JalqTheme.colors.emerald,
+    backgroundColor: JalqTheme.colors.emeraldGlow,
   },
   ladderSwatch: {
     width: 24,
     height: 24,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#CBD5E1',
+    borderColor: JalqTheme.colors.borderDefault,
   },
   ladderInfoCol: {
     flex: 1,
@@ -698,19 +680,18 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   ladderName: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
     color: JalqTheme.colors.textPrimary,
   },
   winnerMarker: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#15803D',
-    letterSpacing: 0.5,
+    color: JalqTheme.colors.emerald,
   },
   distanceBarTrack: {
-    height: 6,
-    backgroundColor: '#E2E8F0',
+    height: 5,
+    backgroundColor: JalqTheme.colors.bgMuted,
     borderRadius: 3,
     overflow: 'hidden',
   },
@@ -720,23 +701,25 @@ const styles = StyleSheet.create({
   },
   deltaBox: {
     alignItems: 'flex-end',
-    minWidth: 50,
+    minWidth: 44,
   },
   deltaLabel: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: '700',
     color: JalqTheme.colors.textMuted,
+    textTransform: 'uppercase',
   },
   deltaVal: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: JalqTheme.colors.textPrimary,
+    color: JalqTheme.colors.textSecondary,
   },
   deltaValWinner: {
-    color: '#15803D',
+    color: JalqTheme.colors.emerald,
+    fontWeight: '800',
   },
   diagHeader: {
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
   diagTitle: {
     fontSize: 13,
@@ -764,61 +747,42 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: JalqTheme.colors.textPrimary,
   },
-  secondaryRetakeBtn: {
-    backgroundColor: '#F1F5F9',
-    borderColor: '#CBD5E1',
-    borderWidth: 1,
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  secondaryRetakeText: {
-    color: '#334155',
-    fontWeight: '700',
-    fontSize: 14,
-  },
   rejectionCard: {
-    backgroundColor: '#FEF2F2',
-    borderColor: '#FECACA',
+    backgroundColor: JalqTheme.colors.badgeErrorBg,
+    borderColor: JalqTheme.colors.badgeErrorBorder,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 18,
+    borderRadius: JalqTheme.radius.lg,
+    padding: JalqTheme.spacing.base,
   },
   rejectionTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#991B1B',
+    fontSize: 16,
+    fontWeight: '800',
+    color: JalqTheme.colors.crimson,
     marginBottom: 6,
   },
   rejectionMessage: {
     fontSize: 13,
-    color: '#7F1D1D',
+    color: JalqTheme.colors.textSecondary,
     lineHeight: 18,
-    marginBottom: 14,
+    marginBottom: 12,
   },
   rejectionDetailsList: {
     gap: 10,
-    marginBottom: 14,
   },
   fixHeading: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#991B1B',
+    color: JalqTheme.colors.crimson,
     letterSpacing: 0.5,
+    textTransform: 'uppercase',
     marginBottom: 4,
   },
   rejectionItem: {
-    flexDirection: 'row',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#FECACA',
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderColor: JalqTheme.colors.borderSubtle,
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: JalqTheme.radius.md,
     padding: 12,
-    gap: 10,
-  },
-  rejectionBullet: {
-    fontSize: 16,
   },
   rejectionTextCol: {
     flex: 1,
@@ -826,52 +790,40 @@ const styles = StyleSheet.create({
   rejectionItemTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
     marginBottom: 2,
   },
   rejectionItemDesc: {
     fontSize: 12,
-    color: '#475569',
+    color: JalqTheme.colors.textSecondary,
     lineHeight: 16,
     marginBottom: 8,
   },
   howToFixBox: {
-    backgroundColor: '#F0F9FF',
-    borderColor: '#BAE6FD',
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    borderColor: JalqTheme.colors.borderFocus,
     borderWidth: 1,
-    borderRadius: 6,
+    borderRadius: JalqTheme.radius.sm,
     padding: 8,
   },
   howToFixLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: '#0284C7',
+    color: JalqTheme.colors.primary,
     marginBottom: 2,
   },
   howToFixText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
-    color: '#0369A1',
-    lineHeight: 16,
-  },
-  retakeActionBtn: {
-    backgroundColor: '#0284C7',
-    paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  retakeActionText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 14,
+    color: JalqTheme.colors.textPrimary,
+    lineHeight: 15,
   },
   footer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#FFFFFF',
+    paddingHorizontal: JalqTheme.spacing.base,
+    paddingVertical: JalqTheme.spacing.md,
+    backgroundColor: JalqTheme.colors.bgCardElevated,
     borderTopWidth: 1,
-    borderTopColor: '#E2E8F0',
+    borderTopColor: JalqTheme.colors.borderSubtle,
   },
   footerBtnRow: {
     flexDirection: 'row',
@@ -879,30 +831,18 @@ const styles = StyleSheet.create({
   },
   primaryFooterBtn: {
     flex: 1,
-    backgroundColor: '#0284C7',
+    ...DS.primaryBtn,
     paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   primaryFooterBtnText: {
-    color: '#FFFFFF',
-    fontWeight: '700',
-    fontSize: 15,
+    ...DS.primaryBtnText,
   },
   secondaryFooterBtn: {
     width: 100,
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
+    ...DS.ghostBtn,
     paddingVertical: 14,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   secondaryFooterBtnText: {
-    color: '#0F172A',
-    fontWeight: '600',
-    fontSize: 15,
+    ...DS.ghostBtnText,
   },
 });

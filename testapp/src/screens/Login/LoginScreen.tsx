@@ -5,12 +5,13 @@ import {
   Pressable,
   SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
-import { JalqTheme } from '../../theme/colors';
+import { JalqTheme, DS } from '../../theme/colors';
 import { UserRole, UserSession } from '../../types/jalq';
 import { JALQ_API_BASE, setCurrentUserRole, setApiBaseUrl } from '../../services/jalqApi';
 
@@ -19,32 +20,26 @@ interface LoginScreenProps {
 }
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
-  const [techName, setTechName] = useState('Dr. Alex Chen');
-  const [techId, setTechId] = useState('MGR-8012');
-  const [facility, setFacility] = useState('JalQ Standards & Calibration Lab');
-  const [selectedRole, setSelectedRole] = useState<UserRole>('TEST_MANAGER');
+  const [techName, setTechName] = useState('');
+  const [facility, setFacility] = useState('');
+  const [selectedRole, setSelectedRole] = useState<UserRole>('TESTER');
   const [showConfig, setShowConfig] = useState(false);
   const [serverUrl, setServerUrl] = useState(JALQ_API_BASE);
 
-  const handleManualLogin = () => {
+  const handleLogin = () => {
     if (!techName.trim()) return;
     setCurrentUserRole(selectedRole);
     onLoginSuccess({
       technicianName: techName.trim(),
-      technicianId: techId.trim() || 'TECH-DEMO',
-      facility: facility.trim() || 'JalQ Testing Facility',
+      technicianId: `TECH-${Date.now().toString().slice(-4)}`,
+      facility: facility.trim() || 'Field Site',
       role: selectedRole,
     });
   };
 
   const handleQuickLogin = (role: UserRole, name: string, id: string, fac: string) => {
     setCurrentUserRole(role);
-    onLoginSuccess({
-      technicianName: name,
-      technicianId: id,
-      facility: fac,
-      role: role,
-    });
+    onLoginSuccess({ technicianName: name, technicianId: id, facility: fac, role });
   };
 
   const handleSaveConfig = () => {
@@ -52,148 +47,130 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
     setShowConfig(false);
   };
 
+  const canLogin = techName.trim().length > 0;
+
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          {/* Header Brand */}
-          <View style={styles.header}>
-            <Text style={styles.brandTitle}>JalQ</Text>
-            <Text style={styles.brandSubtitle}>
-              Liquid test reader and color analysis
-            </Text>
+        style={{ flex: 1 }}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}>
+
+          {/* ── Brand Header ───────────────────────────────────────── */}
+          <View style={styles.brandArea}>
+            {/* Logo Icon */}
+            <View style={styles.logoCircle}>
+              <Text style={styles.logoIcon}>💧</Text>
+            </View>
+            <Text style={styles.brandName}>JalQ</Text>
+            <Text style={styles.brandTagline}>Chemical Liquid Color Analysis</Text>
+            {/* Version badge */}
+            <View style={styles.versionBadge}>
+              <Text style={styles.versionText}>FIELD EDITION • v1.0</Text>
+            </View>
           </View>
 
-          {/* Login Card */}
+          {/* ── Login Card ─────────────────────────────────────────── */}
           <View style={styles.card}>
             <Text style={styles.cardTitle}>Sign In</Text>
-            <Text style={styles.cardDesc}>
-              Select your role to start testing or manage chemical standards.
-            </Text>
+            <Text style={styles.cardDesc}>Select your role and enter your details to begin.</Text>
 
-            {/* Role Selection Segmented Control */}
+            {/* Role Segmented Control */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Role</Text>
-              <View style={styles.roleSelectorRow}>
-                <Pressable
-                  style={[
-                    styles.roleChip,
-                    selectedRole === 'TESTER' && styles.roleChipActive,
-                  ]}
-                  onPress={() => setSelectedRole('TESTER')}>
-                  <Text
-                    style={[
-                      styles.roleChipText,
-                      selectedRole === 'TESTER' && styles.roleChipTextActive,
-                    ]}>
-                    Field Tester
-                  </Text>
-                </Pressable>
-
-                <Pressable
-                  style={[
-                    styles.roleChip,
-                    selectedRole === 'TEST_MANAGER' && styles.roleChipActive,
-                  ]}
-                  onPress={() => setSelectedRole('TEST_MANAGER')}>
-                  <Text
-                    style={[
-                      styles.roleChipText,
-                      selectedRole === 'TEST_MANAGER' && styles.roleChipTextActive,
-                    ]}>
-                    Test Manager
-                  </Text>
-                </Pressable>
+              <Text style={DS.fieldLabel}>Your role</Text>
+              <View style={styles.segmentedControl}>
+                {(['TESTER', 'TEST_MANAGER'] as UserRole[]).map((role) => {
+                  const active = selectedRole === role;
+                  return (
+                    <Pressable
+                      key={role}
+                      style={[styles.segmentBtn, active && styles.segmentBtnActive]}
+                      onPress={() => setSelectedRole(role)}>
+                      <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
+                        {role === 'TESTER' ? '🧪 Field Tester' : '⚗️ Test Manager'}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
             </View>
 
+            {/* Name */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Your name</Text>
+              <Text style={DS.fieldLabel}>Your name</Text>
               <TextInput
                 style={styles.input}
                 value={techName}
                 onChangeText={setTechName}
                 placeholder="Enter your name"
-                placeholderTextColor="#94A3B8"
+                placeholderTextColor={JalqTheme.colors.textMuted}
               />
             </View>
 
+            {/* Facility */}
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Facility or testing site</Text>
+              <Text style={DS.fieldLabel}>Facility / site</Text>
               <TextInput
                 style={styles.input}
                 value={facility}
                 onChangeText={setFacility}
-                placeholder="Enter facility name"
-                placeholderTextColor="#94A3B8"
+                placeholder="e.g. North River Testing Site"
+                placeholderTextColor={JalqTheme.colors.textMuted}
               />
             </View>
 
-            <Pressable style={styles.primaryButton} onPress={handleManualLogin}>
-              <Text style={styles.primaryButtonText}>
-                {selectedRole === 'TEST_MANAGER'
-                  ? 'Open Test Manager'
-                  : 'Start Testing'}
+            {/* CTA Button */}
+            <Pressable
+              style={[styles.loginBtn, !canLogin && styles.loginBtnDisabled]}
+              onPress={handleLogin}
+              disabled={!canLogin}>
+              <Text style={styles.loginBtnText}>
+                {selectedRole === 'TEST_MANAGER' ? 'Open Test Manager →' : 'Start Testing →'}
               </Text>
             </Pressable>
 
-            {/* Subtle Demo Quick Fills */}
-            <View style={styles.quickFillRow}>
-              <Text style={styles.quickFillLabel}>Quick fill:</Text>
-              <Pressable
-                onPress={() =>
-                  handleQuickLogin(
-                    'TESTER',
-                    'Sam Rivera',
-                    'TECH-4091',
-                    'North River Testing Site',
-                  )
-                }>
-                <Text style={styles.quickFillLink}>Tester</Text>
+            {/* Quick Fill */}
+            <View style={styles.quickRow}>
+              <Text style={styles.quickLabel}>Quick demo:</Text>
+              <Pressable onPress={() => handleQuickLogin('TESTER', 'Sam Rivera', 'TECH-4091', 'North River Site')}>
+                <Text style={styles.quickLink}>Tester</Text>
               </Pressable>
-              <Text style={styles.quickFillDot}>•</Text>
-              <Pressable
-                onPress={() =>
-                  handleQuickLogin(
-                    'TEST_MANAGER',
-                    'Dr. Alex Chen',
-                    'MGR-8012',
-                    'Standards Lab',
-                  )
-                }>
-                <Text style={styles.quickFillLink}>Manager</Text>
+              <Text style={styles.quickDot}>·</Text>
+              <Pressable onPress={() => handleQuickLogin('TEST_MANAGER', 'Dr. Alex Chen', 'MGR-8012', 'Standards Lab')}>
+                <Text style={styles.quickLink}>Manager</Text>
               </Pressable>
             </View>
           </View>
 
-          {/* Network / Server Config */}
-          <View style={styles.configContainer}>
-            <Pressable
-              style={styles.configToggle}
-              onPress={() => setShowConfig(!showConfig)}>
-              <Text style={styles.configToggleText}>
-                {showConfig ? 'Hide server settings' : 'Server settings'}
-              </Text>
+          {/* ── Server Config ──────────────────────────────────────── */}
+          <View style={styles.configArea}>
+            <Pressable style={styles.configToggle} onPress={() => setShowConfig(!showConfig)}>
+              <Text style={styles.configToggleText}>⚙️  Server settings</Text>
+              <Text style={styles.configChevron}>{showConfig ? '▲' : '▼'}</Text>
             </Pressable>
 
             {showConfig && (
               <View style={styles.configBox}>
-                <Text style={styles.configLabel}>API Base URL</Text>
+                <Text style={DS.fieldLabel}>API Base URL</Text>
                 <TextInput
-                  style={styles.configInput}
+                  style={[styles.input, styles.configInput]}
                   value={serverUrl}
                   onChangeText={setServerUrl}
                   autoCapitalize="none"
                   autoCorrect={false}
+                  placeholderTextColor={JalqTheme.colors.textMuted}
                 />
-                <Pressable style={styles.configSaveBtn} onPress={handleSaveConfig}>
-                  <Text style={styles.configSaveText}>Save URL</Text>
+                <Pressable style={styles.saveBtn} onPress={handleSaveConfig}>
+                  <Text style={styles.saveBtnText}>Save URL</Text>
                 </Pressable>
               </View>
             )}
           </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -203,183 +180,185 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: JalqTheme.colors.bgDark,
   },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    padding: 20,
-    justifyContent: 'center',
+  scroll: {
+    padding: JalqTheme.spacing.lg,
+    paddingBottom: JalqTheme.spacing.xxxl,
     flexGrow: 1,
+    justifyContent: 'center',
   },
-  header: {
+
+  // Brand
+  brandArea: {
     alignItems: 'center',
-    marginBottom: 28,
+    marginBottom: JalqTheme.spacing.xxl,
+    paddingTop: JalqTheme.spacing.xl,
   },
-  brandTitle: {
-    fontSize: 32,
+  logoCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    borderWidth: 1.5,
+    borderColor: JalqTheme.colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: JalqTheme.spacing.md,
+    ...JalqTheme.shadow.cyan,
+  },
+  logoIcon: { fontSize: 32 },
+  brandName: {
+    fontSize: 36,
     fontWeight: '800',
-    color: '#0F172A',
-    letterSpacing: -0.5,
+    color: JalqTheme.colors.textPrimary,
+    letterSpacing: -1,
   },
-  brandSubtitle: {
-    fontSize: 14,
-    color: '#64748B',
-    textAlign: 'center',
+  brandTagline: {
+    fontSize: 13,
+    color: JalqTheme.colors.textSecondary,
     marginTop: 4,
+    letterSpacing: 0.3,
   },
-  card: {
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
+  versionBadge: {
+    marginTop: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: JalqTheme.radius.pill,
+    backgroundColor: JalqTheme.colors.badgeInfoBg,
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    borderColor: JalqTheme.colors.badgeInfoBorder,
+  },
+  versionText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: JalqTheme.colors.badgeInfoText,
+    letterSpacing: 1,
+  },
+
+  // Card
+  card: {
+    backgroundColor: JalqTheme.colors.bgCard,
+    borderRadius: JalqTheme.radius.xl,
+    borderWidth: 1,
+    borderColor: JalqTheme.colors.borderSubtle,
+    padding: JalqTheme.spacing.xl,
+    ...JalqTheme.shadow.md,
   },
   cardTitle: {
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: '700',
-    color: '#0F172A',
+    color: JalqTheme.colors.textPrimary,
     marginBottom: 4,
   },
   cardDesc: {
     fontSize: 13,
-    color: '#64748B',
-    marginBottom: 20,
+    color: JalqTheme.colors.textSecondary,
+    marginBottom: JalqTheme.spacing.xl,
     lineHeight: 18,
   },
-  fieldGroup: {
-    marginBottom: 16,
+
+  // Fields
+  fieldGroup: { marginBottom: JalqTheme.spacing.base },
+  input: {
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderWidth: 1,
+    borderColor: JalqTheme.colors.borderDefault,
+    borderRadius: JalqTheme.radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    color: JalqTheme.colors.textPrimary,
+    fontSize: 14,
   },
-  fieldLabel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#334155',
-    marginBottom: 6,
-  },
-  roleSelectorRow: {
+
+  // Segmented control
+  segmentedControl: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
-    borderRadius: 10,
-    padding: 4,
-    gap: 4,
+    backgroundColor: JalqTheme.colors.bgInput,
+    borderRadius: JalqTheme.radius.md,
+    borderWidth: 1,
+    borderColor: JalqTheme.colors.borderDefault,
+    padding: 3,
+    gap: 3,
   },
-  roleChip: {
+  segmentBtn: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: JalqTheme.radius.sm,
   },
-  roleChipActive: {
-    backgroundColor: '#FFFFFF',
-    shadowColor: '#000',
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+  segmentBtnActive: {
+    backgroundColor: JalqTheme.colors.primary,
+    ...JalqTheme.shadow.cyan,
   },
-  roleChipText: {
-    color: '#64748B',
-    fontSize: 13,
+  segmentText: {
+    fontSize: 12,
     fontWeight: '600',
+    color: JalqTheme.colors.textMuted,
   },
-  roleChipTextActive: {
-    color: '#0284C7',
+  segmentTextActive: {
+    color: JalqTheme.colors.textInverse,
     fontWeight: '700',
   },
-  input: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#0F172A',
-    fontSize: 14,
-  },
-  primaryButton: {
-    backgroundColor: '#0284C7',
-    paddingVertical: 14,
-    borderRadius: 10,
+
+  // Login button
+  loginBtn: {
+    backgroundColor: JalqTheme.colors.primary,
+    paddingVertical: 15,
+    borderRadius: JalqTheme.radius.lg,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: JalqTheme.spacing.sm,
+    ...JalqTheme.shadow.cyan,
   },
-  primaryButtonText: {
-    color: '#FFFFFF',
+  loginBtnDisabled: {
+    backgroundColor: JalqTheme.colors.bgMuted,
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  loginBtnText: {
+    color: JalqTheme.colors.textInverse,
     fontWeight: '700',
     fontSize: 15,
+    letterSpacing: 0.3,
   },
-  quickFillRow: {
+
+  // Quick fill
+  quickRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 18,
-    gap: 8,
+    marginTop: JalqTheme.spacing.base,
+    gap: 6,
   },
-  quickFillLabel: {
-    fontSize: 12,
-    color: '#94A3B8',
-  },
-  quickFillLink: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0284C7',
-  },
-  quickFillDot: {
-    color: '#CBD5E1',
-    fontSize: 12,
-  },
-  configContainer: {
-    marginTop: 20,
-    alignItems: 'center',
-  },
+  quickLabel: { fontSize: 12, color: JalqTheme.colors.textMuted },
+  quickLink: { fontSize: 12, fontWeight: '600', color: JalqTheme.colors.primary },
+  quickDot: { color: JalqTheme.colors.textMuted },
+
+  // Server config
+  configArea: { marginTop: JalqTheme.spacing.lg },
   configToggle: {
-    padding: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: JalqTheme.spacing.sm,
+    gap: 6,
   },
-  configToggleText: {
-    color: '#94A3B8',
-    fontSize: 12,
-  },
+  configToggleText: { fontSize: 12, color: JalqTheme.colors.textMuted },
+  configChevron: { fontSize: 10, color: JalqTheme.colors.textMuted },
   configBox: {
-    width: '100%',
-    backgroundColor: '#FFFFFF',
-    borderColor: '#E2E8F0',
+    backgroundColor: JalqTheme.colors.bgCard,
+    borderRadius: JalqTheme.radius.lg,
     borderWidth: 1,
-    borderRadius: 10,
-    padding: 14,
-    marginTop: 8,
+    borderColor: JalqTheme.colors.borderSubtle,
+    padding: JalqTheme.spacing.base,
+    marginTop: JalqTheme.spacing.sm,
   },
-  configLabel: {
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#64748B',
-    marginBottom: 6,
-  },
-  configInput: {
-    backgroundColor: '#F8FAFC',
-    borderColor: '#E2E8F0',
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    color: '#0F172A',
-    fontSize: 13,
-    marginBottom: 10,
-  },
-  configSaveBtn: {
-    backgroundColor: '#0284C7',
-    paddingVertical: 8,
-    borderRadius: 8,
+  configInput: { marginBottom: JalqTheme.spacing.md, fontSize: 12 },
+  saveBtn: {
+    backgroundColor: JalqTheme.colors.primary,
+    paddingVertical: 10,
+    borderRadius: JalqTheme.radius.md,
     alignItems: 'center',
   },
-  configSaveText: {
-    color: '#FFFFFF',
-    fontWeight: '600',
-    fontSize: 12,
-  },
+  saveBtnText: { color: JalqTheme.colors.textInverse, fontWeight: '700', fontSize: 13 },
 });

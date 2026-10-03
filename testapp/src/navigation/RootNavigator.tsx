@@ -2,6 +2,7 @@ import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSession } from '../context/SessionContext';
 import { RootStackParamList } from './types';
+import { JalqTheme } from '../theme/colors';
 
 // Screens
 import { LoginScreen } from '../screens/Login/LoginScreen';
@@ -26,7 +27,7 @@ export const RootNavigator: React.FC = () => {
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
-        contentStyle: { backgroundColor: '#F8FAFC' },
+        contentStyle: { backgroundColor: JalqTheme.colors.bgDark },
       }}>
       {/* 1. Authentication */}
       <Stack.Screen name="Login">

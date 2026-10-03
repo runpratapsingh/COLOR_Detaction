@@ -114,7 +114,7 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
           method: 'POST',
           body: form,
           // Short timeout — if server is slow, skip this frame
-          signal: AbortSignal.timeout(1200),
+          signal: (() => { const c = new AbortController(); setTimeout(() => c.abort(), 1200); return c.signal; })(),
         });
 
         if (res.ok) {
@@ -229,7 +229,7 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#0F172A" translucent={false} />
+      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} translucent={false} />
 
       {/* Top Controls Bar */}
       <View style={styles.topControlBar}>
@@ -389,9 +389,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: Platform.OS === 'android' ? 12 : 8,
     paddingBottom: 12,
-    backgroundColor: '#0F172A',
+    backgroundColor: JalqTheme.colors.bgDeep,
     borderBottomWidth: 1,
-    borderBottomColor: '#1E293B',
+    borderBottomColor: JalqTheme.colors.borderSubtle,
     zIndex: 10,
   },
   headerSlotLeft: {
@@ -415,8 +415,8 @@ const styles = StyleSheet.create({
   },
   testBadge: {
     height: 38,
-    backgroundColor: 'rgba(15, 23, 42, 0.92)',
-    borderColor: 'rgba(56, 189, 248, 0.35)',
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    borderColor: JalqTheme.colors.borderFocus,
     borderWidth: 1,
     paddingHorizontal: 14,
     borderRadius: 19,
@@ -425,7 +425,7 @@ const styles = StyleSheet.create({
     maxWidth: '100%',
   },
   testBadgeText: {
-    color: '#38BDF8',
+    color: JalqTheme.colors.primary,
     fontSize: 12,
     fontWeight: '800',
     letterSpacing: 0.4,
@@ -435,15 +435,15 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    backgroundColor: JalqTheme.colors.bgMuted,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    borderColor: JalqTheme.colors.borderDefault,
   },
   hwBtnActive: {
-    backgroundColor: '#0284C7',
-    borderColor: '#38BDF8',
+    backgroundColor: JalqTheme.colors.primary,
+    borderColor: JalqTheme.colors.primary,
   },
   hwIcon: {
     fontSize: 15,
@@ -513,12 +513,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   bottomDock: {
-    height: 100,
-    backgroundColor: 'rgba(11, 15, 23, 0.95)',
+    height: 104,
+    backgroundColor: JalqTheme.colors.bgDeep,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 24,
+    borderTopWidth: 1,
+    borderTopColor: JalqTheme.colors.borderSubtle,
   },
   galleryButton: {
     alignItems: 'center',
@@ -535,20 +537,21 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   shutterOuterRing: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    borderWidth: 4,
-    borderColor: '#FFFFFF',
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    borderWidth: 3,
+    borderColor: JalqTheme.colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: JalqTheme.colors.primaryGlow,
+    ...JalqTheme.shadow.cyan,
   },
   shutterInnerButton: {
     width: 58,
     height: 58,
     borderRadius: 29,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: JalqTheme.colors.primary,
   },
   shutterDisabled: {
     opacity: 0.4,
