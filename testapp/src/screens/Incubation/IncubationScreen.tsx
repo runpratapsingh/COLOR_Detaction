@@ -3,12 +3,12 @@ import {
   Alert,
   Platform,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme } from '../../theme/colors';
 import { ChemicalTestDetail } from '../../types/jalq';
 import { HeaderBackButton } from '../../components';
@@ -106,7 +106,7 @@ export const IncubationScreen: React.FC<IncubationScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Top Bar */}
       <View style={styles.navBar}>
         <HeaderBackButton onPress={onBack} label="Details" />

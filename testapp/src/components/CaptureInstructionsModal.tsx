@@ -2,13 +2,13 @@ import React from 'react';
 import {
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme } from '../theme/colors';
 
 interface CaptureInstructionsModalProps {

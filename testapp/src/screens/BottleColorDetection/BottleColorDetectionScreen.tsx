@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -11,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { DEFAULT_API_URL, analyzeBottleImage } from '../../services/colorDetectionApi';
@@ -383,7 +383,7 @@ export const BottleColorDetectionScreen: React.FC = () => {
             style={styles.input}
             value={backendUrl}
             onChangeText={setBackendUrl}
-            placeholder="http://192.168.29.205:8000/api/v1"
+            placeholder="https://color-detaction.onrender.com/api/v1"
             placeholderTextColor="#71717A"
           />
         </View>

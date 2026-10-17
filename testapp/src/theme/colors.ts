@@ -1,64 +1,65 @@
 /**
- * JalQ Design System — Industry Standard Dark Theme
- * Reference: Hach Claros, YSI ProDSS, Palintest Lumiso
+ * JalQ Design System — Clean Professional Light Theme (White & Sky-Blue)
+ * Designed for clinical & client-ready clarity
  */
 
 export const JalqTheme = {
   colors: {
     // ── Backgrounds ─────────────────────────────────────────────────────────
-    bgDeep: '#070C18',          // deepest — status bar area
-    bgDark: '#0A0F1E',          // app background
-    bgCard: '#111827',          // card surface
-    bgCardElevated: '#1A2235',  // elevated card / modal
-    bgInput: '#0F1829',         // input field background
-    bgMuted: '#1E2D45',         // muted section / divider zone
+    bgDeep: '#FFFFFF',          // status bar & pure white base
+    bgDark: '#F8FAFC',          // app background (crisp slate/white canvas)
+    bgCard: '#FFFFFF',          // card surface (pure white)
+    bgCardElevated: '#FFFFFF',  // elevated card / modal
+    bgInput: '#F0F9FF',         // soft sky-tinted input field background
+    bgMuted: '#E0F2FE',         // sky blue light accent / divider zone
 
     // ── Borders ──────────────────────────────────────────────────────────────
-    borderSubtle: '#1E2D45',    // barely visible divider
-    borderDefault: '#243352',   // standard border
-    borderFocus: '#06B6D4',     // cyan focus ring
+    borderSubtle: '#E2E8F0',    // subtle light gray divider
+    borderDefault: '#BAE6FD',   // sky blue 200 border
+    borderFocus: '#0284C7',     // sky blue 600 focus ring
 
-    // ── Brand / Primary — Cyan (scientific precision) ────────────────────────
-    primary: '#06B6D4',              // cyan-500
-    primaryDark: '#0891B2',          // cyan-600
-    primaryGlow: 'rgba(6,182,212,0.15)',
-    primaryGlowStrong: 'rgba(6,182,212,0.25)',
+    // ── Brand / Primary — Sky Blue (Clean, Professional & Scientific) ───────
+    primary: '#0284C7',              // sky-600
+    primaryDark: '#0369A1',          // sky-700
+    primaryLight: '#38BDF8',         // sky-400
+    primaryGlow: 'rgba(2,132,199,0.08)',
+    primaryGlowStrong: 'rgba(2,132,199,0.18)',
 
     // ── Status Colors ────────────────────────────────────────────────────────
-    emerald: '#10B981',              // success / pass
-    emeraldDark: '#059669',
-    emeraldGlow: 'rgba(16,185,129,0.15)',
+    emerald: '#059669',              // success / pass (emerald-600)
+    emeraldDark: '#047857',
+    emeraldGlow: 'rgba(5,150,105,0.08)',
 
-    amber: '#F59E0B',                // warning / ambiguous
-    amberDark: '#D97706',
-    amberGlow: 'rgba(245,158,11,0.15)',
+    amber: '#D97706',                // warning / ambiguous (amber-600)
+    amberDark: '#B45309',
+    amberGlow: 'rgba(217,119,6,0.08)',
 
-    crimson: '#EF4444',              // error / fail
-    crimsonDark: '#DC2626',
-    crimsonGlow: 'rgba(239,68,68,0.15)',
+    crimson: '#DC2626',              // error / fail (red-600)
+    crimsonDark: '#B91C1C',
+    crimsonGlow: 'rgba(220,38,38,0.08)',
 
     // ── Typography ───────────────────────────────────────────────────────────
-    textPrimary: '#F1F5F9',          // slate-100
-    textSecondary: '#94A3B8',        // slate-400
-    textMuted: '#475569',            // slate-600
-    textInverse: '#0A0F1E',          // on bright surfaces
+    textPrimary: '#0F172A',          // deep slate-900 for high readability on white
+    textSecondary: '#475569',        // slate-600
+    textMuted: '#94A3B8',            // slate-400
+    textInverse: '#FFFFFF',          // pure white text for buttons & primary accents
 
     // ── Status Badges ────────────────────────────────────────────────────────
-    badgeSuccessBg: 'rgba(16,185,129,0.12)',
-    badgeSuccessBorder: 'rgba(16,185,129,0.30)',
-    badgeSuccessText: '#34D399',
+    badgeSuccessBg: '#ECFDF5',
+    badgeSuccessBorder: '#A7F3D0',
+    badgeSuccessText: '#065F46',
 
-    badgeWarningBg: 'rgba(245,158,11,0.12)',
-    badgeWarningBorder: 'rgba(245,158,11,0.30)',
-    badgeWarningText: '#FCD34D',
+    badgeWarningBg: '#FFFBEB',
+    badgeWarningBorder: '#FDE68A',
+    badgeWarningText: '#92400E',
 
-    badgeErrorBg: 'rgba(239,68,68,0.12)',
-    badgeErrorBorder: 'rgba(239,68,68,0.30)',
-    badgeErrorText: '#FCA5A5',
+    badgeErrorBg: '#FEF2F2',
+    badgeErrorBorder: '#FECACA',
+    badgeErrorText: '#991B1B',
 
-    badgeInfoBg: 'rgba(6,182,212,0.12)',
-    badgeInfoBorder: 'rgba(6,182,212,0.30)',
-    badgeInfoText: '#67E8F9',
+    badgeInfoBg: '#F0F9FF',
+    badgeInfoBorder: '#BAE6FD',
+    badgeInfoText: '#0369A1',
   },
 
   // ── Spacing Scale ──────────────────────────────────────────────────────────
@@ -95,35 +96,35 @@ export const JalqTheme = {
     xxxl: { fontSize: 30, lineHeight: 38 },
   },
 
-  // ── Shadows ───────────────────────────────────────────────────────────────
+  // ── Shadows (Refined soft shadows for white cards) ───────────────────────
   shadow: {
     sm: {
-      shadowColor: '#000',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 1 },
-      shadowOpacity: 0.3,
+      shadowOpacity: 0.05,
       shadowRadius: 3,
       elevation: 2,
     },
     md: {
-      shadowColor: '#000',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.4,
-      shadowRadius: 8,
-      elevation: 5,
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+      elevation: 4,
     },
     lg: {
-      shadowColor: '#000',
+      shadowColor: '#0F172A',
       shadowOffset: { width: 0, height: 8 },
-      shadowOpacity: 0.5,
-      shadowRadius: 16,
-      elevation: 10,
+      shadowOpacity: 0.10,
+      shadowRadius: 20,
+      elevation: 8,
     },
     cyan: {
-      shadowColor: '#06B6D4',
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.35,
+      shadowColor: '#0284C7',
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.20,
       shadowRadius: 12,
-      elevation: 6,
+      elevation: 5,
     },
   },
 
@@ -156,9 +157,10 @@ export const DS = {
     paddingVertical: 13,
     borderRadius: JalqTheme.radius.lg,
     alignItems: 'center' as const,
+    backgroundColor: '#FFFFFF',
   },
   ghostBtnText: {
-    color: JalqTheme.colors.textSecondary,
+    color: JalqTheme.colors.primary,
     fontSize: 14,
     fontWeight: '600' as const,
   },
@@ -198,8 +200,9 @@ export const DS = {
   sectionTitle: {
     fontSize: 11,
     fontWeight: '700' as const,
-    color: JalqTheme.colors.textMuted,
+    color: JalqTheme.colors.primaryDark,
     letterSpacing: 1.2,
     textTransform: 'uppercase' as const,
   },
 };
+

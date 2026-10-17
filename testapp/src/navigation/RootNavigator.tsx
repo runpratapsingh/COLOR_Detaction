@@ -156,7 +156,10 @@ export const RootNavigator: React.FC = () => {
             testId={route.params.testId}
             onBack={() => navigation.goBack()}
             onStartIncubation={(test) =>
-              navigation.navigate('Incubation', { test })
+              navigation.navigate('CameraCapture', {
+                test,
+                incubationSeconds: test.incubation_seconds || 300,
+              })
             }
           />
         )}

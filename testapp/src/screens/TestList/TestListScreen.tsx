@@ -1,18 +1,18 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestSummary, UserSession } from '../../types/jalq';
 import { fetchChemicalTests } from '../../services/jalqApi';
-import { QRScannerModal } from '../QRScanner/QRScannerModal';
 
 interface TestListScreenProps {
   session: UserSession;
@@ -36,16 +36,19 @@ export const TestListScreen: React.FC<TestListScreenProps> = ({
 }) => {
   const [tests, setTests] = useState<ChemicalTestSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showQrModal, setShowQrModal] = useState(false);
 
-  useEffect(() => { loadTests(); }, []);
-
-  const loadTests = async () => {
+  const loadTests = useCallback(async () => {
     setLoading(true);
     const data = await fetchChemicalTests();
     setTests(data);
     setLoading(false);
-  };
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadTests();
+    }, [loadTests])
+  );
 
   // Avatar initials
   const initials = session.technicianName
@@ -97,7 +100,7 @@ export const TestListScreen: React.FC<TestListScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* ── Top Header Bar ──────────────────────────────────── */}
       <View style={styles.topBar}>
@@ -121,9 +124,6 @@ export const TestListScreen: React.FC<TestListScreenProps> = ({
           <Text style={styles.sectionTitle}>Available Tests</Text>
           <Text style={styles.sectionSub}>Select a test protocol to begin</Text>
         </View>
-        <Pressable style={styles.qrBtn} onPress={() => setShowQrModal(true)}>
-          <Text style={styles.qrBtnText}>📷 Scan Kit</Text>
-        </Pressable>
       </View>
 
       {/* ── List ────────────────────────────────────────────── */}
@@ -149,12 +149,6 @@ export const TestListScreen: React.FC<TestListScreenProps> = ({
           showsVerticalScrollIndicator={false}
         />
       )}
-
-      <QRScannerModal
-        visible={showQrModal}
-        onClose={() => setShowQrModal(false)}
-        onTestIdentified={(testId) => onSelectTest(testId)}
-      />
     </SafeAreaView>
   );
 };

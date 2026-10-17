@@ -5,7 +5,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -13,6 +12,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, ProcedureStep, Reagent, UserSession } from '../../types/jalq';
 import { createChemicalTest, fetchTestDetails, updateChemicalTest } from '../../services/jalqApi';
@@ -177,7 +177,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={JalqTheme.colors.primary} />
           <Text style={styles.loadingText}>Loading test parameters...</Text>
@@ -188,7 +188,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Top Header */}
       <View style={styles.topBar}>

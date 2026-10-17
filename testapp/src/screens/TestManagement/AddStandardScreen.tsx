@@ -6,13 +6,14 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, ReferenceAnalysisResult, UserSession } from '../../types/jalq';
@@ -306,6 +307,7 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Top Header */}
       <View style={styles.topBar}>
         <HeaderBackButton onPress={onBack} label="Standards" />
@@ -530,24 +532,22 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
 
                   {/* Measurements: 2x2 Metric Grid */}
                   <View style={styles.metricGridSection}>
-                    <Text style={styles.sectionSublabel}>Color Coordinates</Text>
+                    <Text style={styles.sectionSublabel}>Validation Metrics</Text>
                     <View style={styles.metricsGrid2x2}>
                       <View style={styles.metricTile}>
-                        <Text style={styles.metricTileLabel}>CIE L*a*b*</Text>
+                        <Text style={styles.metricTileLabel}>Color Spectrum</Text>
                         <Text style={styles.metricTileVal}>
-                          L: {analysisResult.detected_color.lab.l.toFixed(1)}
+                          {analysisResult.detected_color.hex.toUpperCase()}
                         </Text>
-                        <Text style={styles.metricTileSub}>
-                          a: {analysisResult.detected_color.lab.a.toFixed(1)}  b: {analysisResult.detected_color.lab.b.toFixed(1)}
-                        </Text>
+                        <Text style={styles.metricTileSub}>Calibrated</Text>
                       </View>
 
                       <View style={styles.metricTile}>
-                        <Text style={styles.metricTileLabel}>sRGB</Text>
+                        <Text style={styles.metricTileLabel}>Standard Level</Text>
                         <Text style={styles.metricTileVal}>
-                          {analysisResult.detected_color.rgb.r}, {analysisResult.detected_color.rgb.g}, {analysisResult.detected_color.rgb.b}
+                          {standardValue} {unit}
                         </Text>
-                        <Text style={styles.metricTileSub}>Median</Text>
+                        <Text style={styles.metricTileSub}>Reference</Text>
                       </View>
 
                       <View style={styles.metricTile}>

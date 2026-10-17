@@ -1,7 +1,7 @@
 import { AnalysisResponse, AnalyzeParams } from '../types/colorDetection';
 
-// Local Wi-Fi IP address for mobile devices on same network
-export const DEFAULT_API_URL = 'http://192.168.29.205:8000/api/v1';
+// Hosted endpoint on Render for FastAPI CV Service
+export const DEFAULT_API_URL = 'https://color-detaction.onrender.com/api/v1';
 
 export async function analyzeBottleImage(
   params: AnalyzeParams,

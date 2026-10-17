@@ -5,12 +5,12 @@ import {
   Image,
   Platform,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Camera, useCameraDevice, useCameraPermission } from 'react-native-vision-camera';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { JalqTheme } from '../../theme/colors';
@@ -229,12 +229,12 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} translucent={false} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent={false} />
 
       {/* Top Controls Bar */}
       <View style={styles.topControlBar}>
         <View style={styles.headerSlotLeft}>
-          <HeaderBackButton onPress={onBack} label="Incubation" disabled={isAnalyzing} />
+          <HeaderBackButton onPress={onBack} label="Back" disabled={isAnalyzing} />
         </View>
 
         <View style={styles.headerSlotCenter}>

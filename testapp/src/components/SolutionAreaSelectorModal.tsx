@@ -5,12 +5,12 @@ import {
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme } from '../theme/colors';
 
 export type NormalizedRoi = [number, number, number, number]; // [x_min, y_min, x_max, y_max] in 0.0 .. 1.0

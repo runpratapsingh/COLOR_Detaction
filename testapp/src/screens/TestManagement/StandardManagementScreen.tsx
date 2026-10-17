@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,20 +6,20 @@ import {
   Image,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
+  StatusBar,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { JalqTheme } from '../../theme/colors';
 import { ChemicalTestDetail, ColorStandard, UserSession } from '../../types/jalq';
 import {
-  createNewTestVersion,
   deleteColorStandard,
   fetchTestDetails,
-  publishChemicalTest,
   updateColorStandard,
 } from '../../services/jalqApi';
 import { HeaderBackButton } from '../../components';
@@ -72,13 +72,15 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
     }
   }, [testId]);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    loadStandards();
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [loadStandards]);
+  useFocusEffect(
+    useCallback(() => {
+      isMountedRef.current = true;
+      loadStandards();
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, [loadStandards])
+  );
 
   const isPublished = test?.status === 'PUBLISHED';
 
@@ -135,65 +137,12 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
     }
   };
 
-  const handlePublish = async () => {
-    if (!test) return;
-    if (test.standards.length === 0) {
-      Alert.alert('Cannot Publish', 'Add at least one color standard before publishing.');
-      return;
-    }
 
-    Alert.alert(
-      'Publish Chemical Test',
-      `Publishing '${test.name}' will make its standards immutable for field testers. Continue?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Publish Test Now',
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              await publishChemicalTest(testId, session.role);
-              await loadStandards();
-              Alert.alert('Published', `Test '${test.name}' is now live for field testers.`);
-            } catch (err: any) {
-              Alert.alert('Publish Error', err.message || 'Failed to publish test.');
-            } finally {
-              setActionLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  const handleNewVersion = async () => {
-    Alert.alert(
-      'Create New Revision',
-      `Create Version ${(test?.version || 1) + 1} of this test in DRAFT state? Historical version will remain intact.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create Version',
-          onPress: async () => {
-            try {
-              setActionLoading(true);
-              await createNewTestVersion(testId, session.role);
-              await loadStandards();
-              Alert.alert('Success', 'New draft version created.');
-            } catch (err: any) {
-              Alert.alert('Version Error', err.message || 'Failed to create new version.');
-            } finally {
-              setActionLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   if (loading || !test) {
     return (
       <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={JalqTheme.colors.primary} />
           <Text style={styles.loadingText}>Loading color standards ladder...</Text>
@@ -206,6 +155,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
       {/* Navigation Top Bar */}
       <View style={styles.navBar}>
         <HeaderBackButton onPress={onBack} label="Dashboard" />
@@ -257,7 +207,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
                     <Text style={styles.ladderValueText}>
                       {std.value} {std.unit}
                     </Text>
-                    <Text style={styles.ladderHexText}>{hex.toUpperCase()}</Text>
+                    <Text style={styles.ladderHexText}>{std.level || `Level ${idx + 1}`}</Text>
 
                     {!isLast && (
                       <View style={styles.ladderConnector}>
@@ -328,7 +278,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
 
                   <Text style={styles.standardNameText}>{std.name || std.color_name || 'Standard'}</Text>
                   <Text style={styles.metricSummaryText}>
-                    Hex: {hex.toUpperCase()} • CIE Lab: {lab.l.toFixed(1)}, {lab.a.toFixed(1)}, {lab.b.toFixed(1)}
+                    Calibrated Standard • {quality.overall.toFixed(0)}% Optical Clarity
                   </Text>
                 </View>
               </View>
@@ -366,38 +316,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
           );
         })}
 
-        {/* Bottom Testing & Publishing Controls */}
-        <View style={styles.bottomControlBox}>
-          <Pressable
-            style={styles.testNowActionBtn}
-            onPress={() => (onTestNow ? onTestNow(testId) : onBack())}>
-            <Text style={styles.testNowActionText}>
-              🧪 Test Chemical Reading Now ›
-            </Text>
-          </Pressable>
 
-          {!isPublished ? (
-            <Pressable
-              style={[styles.publishActionBtn, actionLoading && styles.btnDisabled]}
-              disabled={actionLoading}
-              onPress={handlePublish}>
-              {actionLoading ? (
-                <ActivityIndicator color="#FFFFFF" />
-              ) : (
-                <Text style={styles.publishActionText}>
-                  ✓ Publish Test (Make Live)
-                </Text>
-              )}
-            </Pressable>
-          ) : (
-            <View style={styles.publishedNoticeBox}>
-              <Text style={styles.publishedNoticeHeading}>Test Published & Active</Text>
-              <Text style={styles.publishedNoticeText}>
-                You can add more standards above or run sample bottle tests anytime.
-              </Text>
-            </View>
-          )}
-        </View>
       </ScrollView>
 
       {/* MODAL 1: Edit Description & Tolerance */}
@@ -429,7 +348,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>TOLERANCE ΔE00</Text>
+              <Text style={styles.fieldLabel}>COLOR MATCH TOLERANCE</Text>
               <TextInput
                 style={styles.input}
                 value={editTolerance}

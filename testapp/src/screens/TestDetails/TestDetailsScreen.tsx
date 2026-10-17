@@ -2,13 +2,13 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail } from '../../types/jalq';
 import { fetchTestDetails } from '../../services/jalqApi';
@@ -51,7 +51,7 @@ export const TestDetailsScreen: React.FC<TestDetailsScreenProps> = ({
   if (loading || !test) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+        <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={JalqTheme.colors.primary} />
           <Text style={styles.loadingText}>Loading Test Specifications...</Text>
@@ -64,7 +64,7 @@ export const TestDetailsScreen: React.FC<TestDetailsScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Navigation Top Bar */}
       <View style={styles.navBar}>
@@ -80,7 +80,7 @@ export const TestDetailsScreen: React.FC<TestDetailsScreenProps> = ({
         <View style={styles.card}>
           <View style={styles.titleBadgeRow}>
             <View style={styles.protocolBadge}>
-              <Text style={styles.protocolBadgeText}>{test.test_id}</Text>
+              <Text style={styles.protocolBadgeText}>Certified Protocol</Text>
             </View>
             <View style={styles.incubBadge}>
               <Text style={styles.incubBadgeText}>⏱ {incubMin} min incubation</Text>
@@ -245,7 +245,7 @@ export const TestDetailsScreen: React.FC<TestDetailsScreenProps> = ({
           style={({ pressed }) => [styles.startReactionBtn, pressed && styles.btnPressed]}
           onPress={() => onStartIncubation(test)}>
           <Text style={styles.startReactionText}>
-            Start Incubation Timer ({incubMin} min) →
+            Start Chemical Reading →
           </Text>
         </Pressable>
       </View>

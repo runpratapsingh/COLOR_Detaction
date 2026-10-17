@@ -12,8 +12,8 @@ export default function App() {
       <SessionProvider>
         <NavigationContainer>
           <StatusBar
-            barStyle="light-content"
-            backgroundColor={JalqTheme.colors.bgDeep}
+            barStyle="dark-content"
+            backgroundColor="#FFFFFF"
           />
           <RootNavigator />
         </NavigationContainer>

@@ -7,12 +7,16 @@ import {
   UserRole,
 } from '../types/jalq';
 
-// Default Wi-Fi LAN / simulator endpoint for FastAPI CV Service
-export let JALQ_API_BASE = 'http://192.168.29.205:8000/api/v1';
+// Production hosted endpoint on Render for FastAPI CV Service
+export let JALQ_API_BASE = 'https://color-detaction.onrender.com/api/v1';
 export let CURRENT_USER_ROLE: UserRole = 'TEST_MANAGER';
 
 export function setApiBaseUrl(url: string) {
-  JALQ_API_BASE = url.replace(/\/+$/, '');
+  let clean = url.replace(/\/+$/, '');
+  if (!clean.endsWith('/api/v1')) {
+    clean = `${clean}/api/v1`;
+  }
+  JALQ_API_BASE = clean;
 }
 
 export function setCurrentUserRole(role: UserRole) {

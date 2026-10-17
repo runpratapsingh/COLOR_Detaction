@@ -1,15 +1,16 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   FlatList,
   Pressable,
-  SafeAreaView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestSummary, UserSession } from '../../types/jalq';
 import { createNewTestVersion, fetchChemicalTests, publishChemicalTest } from '../../services/jalqApi';
@@ -17,9 +18,9 @@ import { createNewTestVersion, fetchChemicalTests, publishChemicalTest } from '.
 interface TestManagerDashboardScreenProps {
   session: UserSession;
   onCreateTest: () => void;
-  onEditTest: (testId: string) => void;
+  onEditTest?: (testId: string) => void;
   onManageStandards: (testId: string) => void;
-  onPreviewAsTester: (testId: string) => void;
+  onPreviewAsTester?: (testId: string) => void;
   onSwitchToTesterMode: () => void;
   onLogout: () => void;
 }
@@ -59,13 +60,15 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
     }
   }, [statusFilter, session.role]);
 
-  useEffect(() => {
-    isMountedRef.current = true;
-    loadTests();
-    return () => {
-      isMountedRef.current = false;
-    };
-  }, [loadTests]);
+  useFocusEffect(
+    useCallback(() => {
+      isMountedRef.current = true;
+      loadTests();
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, [loadTests])
+  );
 
   const handlePublish = async (testId: string) => {
     Alert.alert(
@@ -80,12 +83,19 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
             try {
               setActionLoadingId(testId);
               await publishChemicalTest(testId, session.role);
+              if (isMountedRef.current) {
+                setTests((prev) =>
+                  prev.map((t) => (t.test_id === testId ? { ...t, status: 'PUBLISHED' } : t))
+                );
+              }
               await loadTests();
               Alert.alert('Test Published', `Test '${testId}' is now live and available to field testers.`);
             } catch (err: any) {
               Alert.alert('Publish Error', err.message || 'Failed to publish test.');
             } finally {
-              setActionLoadingId(null);
+              if (isMountedRef.current) {
+                setActionLoadingId(null);
+              }
             }
           },
         },
@@ -174,12 +184,6 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
               Manage Standards ({item.standards_count})
             </Text>
           </Pressable>
-
-          <Pressable
-            style={styles.editBtn}
-            onPress={() => onEditTest(item.test_id)}>
-            <Text style={styles.editBtnText}>Edit Details</Text>
-          </Pressable>
         </View>
 
         {/* Secondary Workflow Row */}
@@ -203,12 +207,6 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
               <Text style={styles.newVersionLinkText}>+ New Revision</Text>
             </Pressable>
           )}
-
-          <Pressable
-            style={styles.previewLinkBtn}
-            onPress={() => onPreviewAsTester(item.test_id)}>
-            <Text style={styles.previewLinkText}>Tester Preview ›</Text>
-          </Pressable>
         </View>
       </View>
     );
@@ -216,7 +214,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Top Manager Banner */}
       <View style={styles.topBar}>

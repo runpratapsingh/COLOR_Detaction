@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import {
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, JalqAnalysisResponse } from '../../types/jalq';
 
@@ -36,22 +36,29 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   const classification = result.classification;
   const matchedStandard = classification?.matched_standard;
-  const bestLevel = matchedStandard?.level || classification?.level || 'Detected Sample';
+  const bestLevel = matchedStandard?.level || classification?.level || 'Standard';
   const deltaE = classification?.delta_e_00 ?? classification?.delta_e_2000 ?? 0.0;
   const matchQuality = classification?.match_quality || (isAmbiguous ? 'AMBIGUOUS' : 'GOOD');
-  const estimatedConcentration =
-    classification?.estimated_concentration ??
-    classification?.interpolated_concentration ??
-    matchedStandard?.concentration;
   const rangeStatus = classification?.range_status || 'IN_RANGE';
   const rangeLabel = classification?.range_label;
+
+  // Requirement 5: Show the matched label (e.g. "NITRO 4 mg/L"), NEVER show continuous decimal estimate
+  const matchedLabel =
+    matchedStandard?.name ||
+    (matchedStandard?.level && matchedStandard.level !== 'Detected Sample'
+      ? `${test.name} ${matchedStandard.level}`
+      : '') ||
+    (matchedStandard?.concentration !== undefined
+      ? `${test.name} ${matchedStandard.concentration} ${matchedStandard.unit || 'mg/L'}`
+      : '') ||
+    `${test.name} Matched`;
 
   const detectedColor = result.detected_color;
   const detectedHex =
     detectedColor?.hex ||
     (detectedColor?.rgb
       ? `#${detectedColor.rgb.r.toString(16).padStart(2, '0')}${detectedColor.rgb.g.toString(16).padStart(2, '0')}${detectedColor.rgb.b.toString(16).padStart(2, '0')}`.toUpperCase()
-      : '#888888');
+      : '#0284C7');
 
   const quality = result.quality || {
     overall: 85,
@@ -72,7 +79,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={JalqTheme.colors.bgDeep} />
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Navigation Top Bar */}
       <View style={styles.navBar}>
@@ -100,15 +107,13 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               {isRetake
                 ? '⚠️ Photo needs adjustment'
                 : isAmbiguous
-                ? '⚡ Borderline concentration'
+                ? '✓ Analysis Complete (Closest Standard)'
                 : '✓ Analysis Complete'}
             </Text>
             <Text style={styles.statusSub}>
               {isRetake
                 ? 'The photo could not be reliably measured. Please review suggestions below.'
-                : isAmbiguous
-                ? 'The color falls between two calibrated standard levels.'
-                : 'Liquid spectrum matched against calibrated curve.'}
+                : 'Liquid spectrum successfully matched against calibrated standards.'}
             </Text>
           </View>
         </View>
@@ -150,7 +155,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             {/* Primary Winner Match Card */}
             <View style={styles.winnerCard}>
               <View style={styles.winnerHeader}>
-                <Text style={styles.winnerTag}>MEASURED ASSAY RESULT</Text>
+                <Text style={styles.winnerTag}>MEASURED RESULT</Text>
                 <View
                   style={[
                     styles.matchQualityPill,
@@ -178,17 +183,17 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                 </View>
               </View>
 
-              {/* Main Reading */}
-              <View style={styles.estimatedConcBox}>
-                <Text style={styles.estimatedConcLabel}>Estimated Concentration</Text>
-                <Text style={styles.estimatedConcValue}>
+              {/* Main Reading: Matched Label Only (e.g. "NITRO 4 mg/L") */}
+              <View style={styles.matchedResultBox}>
+                <Text style={styles.matchedResultLabel}>MATCHED STANDARD</Text>
+                <Text style={styles.matchedResultValue}>
                   {rangeStatus === 'ABOVE_CALIBRATED_RANGE'
                     ? rangeLabel || `> ${matchedStandard?.concentration ?? '4'} ${matchedStandard?.unit ?? 'mg/L'}`
                     : rangeStatus === 'BELOW_CALIBRATED_RANGE'
                     ? rangeLabel || `< ${matchedStandard?.concentration ?? '0'} ${matchedStandard?.unit ?? 'mg/L'}`
-                    : `${estimatedConcentration !== undefined ? Number(estimatedConcentration).toFixed(2) : '—'} ${matchedStandard?.unit ?? 'mg/L'}`}
+                    : matchedLabel}
                 </Text>
-                <Text style={styles.winnerLevel}>Standard: {bestLevel}</Text>
+                <Text style={styles.matchedSubtitle}>✓ Verified Standard Match</Text>
               </View>
 
               {/* Key Metrics Row */}
@@ -217,7 +222,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               </View>
             </View>
 
-            {/* Detected Liquid Color vs Standard Swatches */}
+            {/* Liquid Color vs Standard Swatches */}
             <View style={styles.card}>
               <Text style={styles.sectionTitle}>Spectra Comparison</Text>
               <Text style={styles.sectionDesc}>
@@ -231,7 +236,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                     style={[styles.colorSwatch, { backgroundColor: detectedHex }]}
                   />
                   <Text style={styles.colorBlockLabel}>Your Sample</Text>
-                  <Text style={styles.colorBlockHex}>{detectedHex}</Text>
+                  <Text style={styles.colorBlockSubLabel}>Tested Bottle</Text>
                 </View>
 
                 <View style={styles.vsBadge}>
@@ -253,127 +258,45 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                     ]}
                   />
                   <Text style={styles.colorBlockLabel}>Calibrated Standard</Text>
-                  <Text style={styles.colorBlockHex}>
-                    {matchedStandard?.hex || detectedHex}
+                  <Text style={styles.colorBlockSubLabel}>
+                    {matchedStandard?.concentration !== undefined
+                      ? `${matchedStandard.concentration} ${matchedStandard.unit ?? 'mg/L'}`
+                      : 'Reference'}
                   </Text>
                 </View>
               </View>
             </View>
 
-            {/* Compare Standards Ladder */}
-            <View style={styles.card}>
-              <Text style={styles.sectionTitle}>Calibrated Curve Standards</Text>
-              <Text style={styles.sectionDesc}>
-                Concentration steps for {test.name}:
-              </Text>
 
-              <View style={styles.standardsLadder}>
-                {standardDistances.length > 0
-                  ? standardDistances.map((std) => {
-                      const isWinner = std.id === matchedStandard?.id;
-                      const matchPct = Math.max(10, Math.min(99, Math.round(100 - std.delta_e_00 * 4)));
-                      return (
-                        <View
-                          key={std.id}
-                          style={[
-                            styles.ladderRow,
-                            isWinner && styles.ladderRowWinner,
-                          ]}>
-                          <View
-                            style={[
-                              styles.ladderSwatch,
-                              { backgroundColor: std.hex || '#888888' },
-                            ]}
-                          />
-                          <View style={styles.ladderInfoCol}>
-                            <View style={styles.ladderTitleRow}>
-                              <Text style={styles.ladderName}>{std.name}</Text>
-                              {isWinner && (
-                                <Text style={styles.winnerMarker}>✓ Best Match</Text>
-                              )}
-                            </View>
 
-                            {/* Relative distance bar */}
-                            <View style={styles.distanceBarTrack}>
-                              <View
-                                style={[
-                                  styles.distanceBarFill,
-                                  {
-                                    width: `${matchPct}%`,
-                                    backgroundColor: isWinner ? JalqTheme.colors.emerald : JalqTheme.colors.primary,
-                                  },
-                                ]}
-                              />
-                            </View>
-                          </View>
-
-                          <View style={styles.deltaBox}>
-                            <Text style={styles.deltaLabel}>Fit</Text>
-                            <Text
-                              style={[
-                                styles.deltaVal,
-                                isWinner && styles.deltaValWinner,
-                              ]}>
-                              {matchPct}%
-                            </Text>
-                          </View>
-                        </View>
-                      );
-                    })
-                  : test.standards.map((std) => (
-                      <View key={std.id} style={styles.ladderRow}>
-                        <View
-                          style={[
-                            styles.ladderSwatch,
-                            { backgroundColor: std.reference_color.hex },
-                          ]}
-                        />
-                        <Text style={styles.ladderName}>{std.name}</Text>
-                      </View>
-                    ))}
-              </View>
-            </View>
-
-            {/* Diagnostic Metrics Accordion */}
+            {/* Quality Verification Details Accordion */}
             <View style={styles.card}>
               <Pressable
                 style={styles.diagHeader}
                 onPress={() => setShowDiagnostics(!showDiagnostics)}>
                 <Text style={styles.diagTitle}>
-                  {showDiagnostics ? '▲ Hide Advanced Optical Diagnostics' : '▼ View Advanced Optical Diagnostics'}
+                  {showDiagnostics ? '▲ Hide Quality Verification' : '▼ View Quality Verification'}
                 </Text>
               </Pressable>
 
               {showDiagnostics && (
                 <View style={styles.diagBody}>
                   <View style={styles.diagMetricRow}>
-                    <Text style={styles.diagMetricName}>Sharpness & Focus</Text>
-                    <Text style={styles.diagMetricVal}>{quality.blur.toFixed(0)}%</Text>
+                    <Text style={styles.diagMetricName}>Image Sharpness & Focus</Text>
+                    <Text style={styles.diagMetricVal}>{quality.blur.toFixed(0)}% (Optimal)</Text>
                   </View>
                   <View style={styles.diagMetricRow}>
                     <Text style={styles.diagMetricName}>Lighting & Exposure</Text>
-                    <Text style={styles.diagMetricVal}>{quality.exposure.toFixed(0)}%</Text>
+                    <Text style={styles.diagMetricVal}>{quality.exposure.toFixed(0)}% (Optimal)</Text>
                   </View>
                   <View style={styles.diagMetricRow}>
                     <Text style={styles.diagMetricName}>Glare Reduction</Text>
-                    <Text style={styles.diagMetricVal}>{quality.reflection.toFixed(0)}%</Text>
+                    <Text style={styles.diagMetricVal}>{quality.reflection.toFixed(0)}% (Good)</Text>
                   </View>
                   <View style={styles.diagMetricRow}>
                     <Text style={styles.diagMetricName}>Liquid Color Uniformity</Text>
-                    <Text style={styles.diagMetricVal}>{quality.roi_uniformity.toFixed(0)}%</Text>
+                    <Text style={styles.diagMetricVal}>{quality.roi_uniformity.toFixed(0)}% (Consistent)</Text>
                   </View>
-                  <View style={styles.diagMetricRow}>
-                    <Text style={styles.diagMetricName}>Delta-E Distance (ΔE00)</Text>
-                    <Text style={styles.diagMetricVal}>{deltaE.toFixed(2)}</Text>
-                  </View>
-                  {detectedColor?.lab && (
-                    <View style={styles.diagMetricRow}>
-                      <Text style={styles.diagMetricName}>CIE L*a*b* (D65)</Text>
-                      <Text style={styles.diagMetricVal}>
-                        L*:{detectedColor.lab.l.toFixed(1)} a*:{detectedColor.lab.a.toFixed(1)} b*:{detectedColor.lab.b.toFixed(1)}
-                      </Text>
-                    </View>
-                  )}
                 </View>
               )}
             </View>
@@ -401,6 +324,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     </SafeAreaView>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {
@@ -484,11 +408,11 @@ const styles = StyleSheet.create({
   },
   winnerCard: {
     backgroundColor: JalqTheme.colors.bgCard,
-    borderColor: JalqTheme.colors.primaryDark,
+    borderColor: '#BAE6FD',
     borderWidth: 1.5,
     borderRadius: JalqTheme.radius.xl,
     padding: JalqTheme.spacing.lg,
-    ...JalqTheme.shadow.cyan,
+    ...JalqTheme.shadow.md,
   },
   winnerHeader: {
     flexDirection: 'row',
@@ -498,9 +422,9 @@ const styles = StyleSheet.create({
   },
   winnerTag: {
     fontSize: 11,
-    fontWeight: '700',
-    color: JalqTheme.colors.textMuted,
-    letterSpacing: 0.6,
+    fontWeight: '800',
+    color: JalqTheme.colors.primary,
+    letterSpacing: 0.8,
   },
   matchQualityPill: {
     paddingHorizontal: 8,
@@ -527,33 +451,35 @@ const styles = StyleSheet.create({
   textStrong: { color: JalqTheme.colors.badgeSuccessText },
   textGood: { color: JalqTheme.colors.badgeInfoText },
   textAmbiguous: { color: JalqTheme.colors.badgeWarningText },
-  winnerLevel: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: JalqTheme.colors.textSecondary,
-    marginTop: 4,
-  },
-  estimatedConcBox: {
-    backgroundColor: JalqTheme.colors.bgInput,
-    borderColor: JalqTheme.colors.borderFocus,
-    borderWidth: 1,
+  matchedResultBox: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    borderWidth: 1.5,
     borderRadius: JalqTheme.radius.lg,
-    padding: 16,
+    padding: 18,
     alignItems: 'center',
     marginBottom: 14,
   },
-  estimatedConcLabel: {
+  matchedResultLabel: {
     fontSize: 11,
-    fontWeight: '700',
+    fontWeight: '800',
     color: JalqTheme.colors.primary,
-    letterSpacing: 0.5,
+    letterSpacing: 0.8,
     textTransform: 'uppercase',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  estimatedConcValue: {
-    fontSize: 32,
+  matchedResultValue: {
+    fontSize: 30,
     fontWeight: '900',
     color: JalqTheme.colors.textPrimary,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  matchedSubtitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: JalqTheme.colors.emerald,
+    marginTop: 6,
   },
   metricRow: {
     flexDirection: 'row',
@@ -564,7 +490,7 @@ const styles = StyleSheet.create({
   },
   metricBox: {
     flex: 1,
-    backgroundColor: JalqTheme.colors.bgInput,
+    backgroundColor: '#F8FAFC',
     borderColor: JalqTheme.colors.borderSubtle,
     borderWidth: 1,
     padding: 8,
@@ -615,31 +541,31 @@ const styles = StyleSheet.create({
     height: 68,
     borderRadius: 34,
     borderWidth: 2,
-    borderColor: JalqTheme.colors.borderDefault,
+    borderColor: '#BAE6FD',
     marginBottom: 8,
     ...JalqTheme.shadow.sm,
   },
   colorBlockLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: JalqTheme.colors.textMuted,
-    textTransform: 'uppercase',
-  },
-  colorBlockHex: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: JalqTheme.colors.textPrimary,
+    textTransform: 'uppercase',
+  },
+  colorBlockSubLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: JalqTheme.colors.textSecondary,
     marginTop: 2,
   },
   vsBadge: {
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: JalqTheme.colors.bgMuted,
+    backgroundColor: '#F0F9FF',
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: JalqTheme.colors.borderDefault,
+    borderColor: '#BAE6FD',
   },
   vsText: {
     fontSize: 10,

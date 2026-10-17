@@ -22,7 +22,7 @@ export const HeaderBackButton: React.FC<HeaderBackButtonProps> = ({
   label,
   disabled = false,
   style,
-  color = JalqTheme.colors.textPrimary,
+  color = JalqTheme.colors.primary,
 }) => {
   return (
     <Pressable
@@ -53,9 +53,9 @@ const styles = StyleSheet.create({
     height: 38,
     minWidth: 38,
     borderRadius: 11,
-    backgroundColor: 'rgba(255, 255, 255, 0.07)',
+    backgroundColor: '#F0F9FF',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.12)',
+    borderColor: '#BAE6FD',
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
@@ -65,8 +65,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   buttonPressed: {
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
-    borderColor: 'rgba(255, 255, 255, 0.24)',
+    backgroundColor: '#E0F2FE',
+    borderColor: '#7DD3FC',
     transform: [{ scale: 0.97 }],
   },
   buttonDisabled: {
@@ -89,8 +89,9 @@ const styles = StyleSheet.create({
   },
   labelText: {
     fontSize: 13,
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: -0.2,
     marginLeft: 4,
   },
 });
+

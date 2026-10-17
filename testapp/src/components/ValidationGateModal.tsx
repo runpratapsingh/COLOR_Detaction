@@ -3,13 +3,13 @@ import {
   Image,
   Modal,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme } from '../theme/colors';
 import { JalqAnalysisResponse, RejectionDetail } from '../types/jalq';
 import { CaptureInstructionsModal } from './CaptureInstructionsModal';
