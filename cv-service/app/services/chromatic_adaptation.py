@@ -215,16 +215,33 @@ def extract_background_white_from_bgr(
         return None
 
     # Keep only near-neutral pixels (low saturation, decent brightness)
-    # S < 80: warm-tinted white paper under fluorescent/incandescent light reaches S=67-75
-    # We only want to exclude clearly colored surfaces (S > 80)
+    # S < 75: warm-tinted white paper under indoor lighting reaches S=60-70
+    # Exclude clearly colored surfaces (S >= 75) or deep shadows (V <= 60)
     hsv = cv2.cvtColor(pixels_bgr.reshape(-1, 1, 3).astype(np.uint8),
                        cv2.COLOR_BGR2HSV).reshape(-1, 3)
-    neutral_mask = (hsv[:, 1] < 80) & (hsv[:, 2] > 60)
-    if int(np.sum(neutral_mask)) > 30:
-        pixels_bgr = pixels_bgr[neutral_mask]
+    neutral_mask = (hsv[:, 1] < 75) & (hsv[:, 2] > 60)
+    neutral_count = int(np.sum(neutral_mask))
+    if neutral_count < 50:
+        # Background is non-neutral (colored surface, wood, or underexposed)
+        return None
+
+    pixels_bgr = pixels_bgr[neutral_mask]
 
     # Median is robust to outliers (shadows, stray objects in background)
     med_b = int(np.median(pixels_bgr[:, 0]))
     med_g = int(np.median(pixels_bgr[:, 1]))
     med_r = int(np.median(pixels_bgr[:, 2]))
+
+    # Verify that the candidate white point is truly neutral in CIE Lab
+    med_pixel_bgr = np.uint8([[[med_b, med_g, med_r]]])
+    med_lab = cv2.cvtColor(med_pixel_bgr, cv2.COLOR_BGR2LAB)[0, 0]
+    l_star = med_lab[0] * 100.0 / 255.0
+    a_star = float(med_lab[1]) - 128.0
+    b_star = float(med_lab[2]) - 128.0
+    chroma = (a_star ** 2 + b_star ** 2) ** 0.5
+
+    # If chroma > 22.0 or L* < 45.0, background is tinted/dark — skip CAT to prevent false color cast
+    if chroma > 22.0 or l_star < 45.0:
+        return None
+
     return (med_r, med_g, med_b)

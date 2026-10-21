@@ -1,0 +1,547 @@
+import React, { useCallback, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Pressable,
+  RefreshControl,
+  StatusBar,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
+import { JalqTheme } from '../../theme/colors';
+import { PerformedTestHistoryItem, UserSession } from '../../types/jalq';
+import { deleteTestHistoryItem, fetchTestHistory } from '../../services/jalqApi';
+import { HeaderBackButton } from '../../components';
+
+interface TestHistoryScreenProps {
+  session: UserSession;
+  onBack: () => void;
+}
+
+export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
+  session,
+  onBack,
+}) => {
+  const [history, setHistory] = useState<PerformedTestHistoryItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const isMountedRef = useRef(true);
+
+  const loadHistory = useCallback(async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
+
+    try {
+      const items = await fetchTestHistory();
+      if (isMountedRef.current) {
+        setHistory(items);
+      }
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        console.warn('Failed to load test history:', err);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
+    }
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      isMountedRef.current = true;
+      loadHistory();
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, [loadHistory])
+  );
+
+  const handleDelete = (item: PerformedTestHistoryItem) => {
+    Alert.alert(
+      'Delete Record',
+      `Delete this test record for ${item.test_name || item.test_id || 'Sample'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeletingId(item.id);
+              await deleteTestHistoryItem(item.id);
+              if (isMountedRef.current) {
+                setHistory((prev) => prev.filter((h) => h.id !== item.id));
+              }
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to delete history record.');
+            } finally {
+              if (isMountedRef.current) {
+                setDeletingId(null);
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const formatDate = (isoString?: string) => {
+    if (!isoString) return 'Recent';
+    try {
+      const d = new Date(isoString);
+      if (isNaN(d.getTime())) return isoString;
+      return d.toLocaleString(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    } catch {
+      return isoString;
+    }
+  };
+
+  const matchedCount = history.filter((h) => h.status === 'SUCCESS').length;
+  const unmatchedCount = history.length - matchedCount;
+
+  const renderHistoryCard = ({ item }: { item: PerformedTestHistoryItem }) => {
+    const isSuccess = item.status === 'SUCCESS';
+    const isUnmatched = item.status === 'NO_MATCH_FOUND';
+    const isDeleting = deletingId === item.id;
+
+    const detectedColor = item.detected_color?.startsWith('#')
+      ? item.detected_color
+      : '#38BDF8';
+
+    return (
+      <View style={styles.card}>
+        {/* Top Header Row */}
+        <View style={styles.cardHeader}>
+          <View style={styles.testInfoCol}>
+            <Text style={styles.testName} numberOfLines={1}>
+              {item.test_name || item.test_id || 'Chemical Test'}
+            </Text>
+            <Text style={styles.dateText}>{formatDate(item.created_at)}</Text>
+          </View>
+
+          <View
+            style={[
+              styles.statusBadge,
+              isSuccess
+                ? styles.badgeSuccess
+                : isUnmatched
+                ? styles.badgeWarning
+                : styles.badgeRetake,
+            ]}>
+            <Text
+              style={[
+                styles.statusBadgeText,
+                isSuccess
+                  ? styles.textSuccess
+                  : isUnmatched
+                  ? styles.textWarning
+                  : styles.textRetake,
+              ]}>
+              {isSuccess ? '✓ Matched' : isUnmatched ? '⚠️ No Match' : 'Re-take'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Content Row: Color Swatch + Readings */}
+        <View style={styles.detailsRow}>
+          <View
+            style={[
+              styles.colorSwatch,
+              { backgroundColor: detectedColor },
+            ]}
+          />
+
+          <View style={styles.readingsCol}>
+            <Text style={styles.readingLabel}>MEASURED READING</Text>
+            <Text style={styles.readingValue}>
+              {item.detected_level ||
+                (item.matched_standard_value !== undefined && item.matched_standard_value !== null
+                  ? `${item.matched_standard_value} mg/L`
+                  : isSuccess
+                  ? 'Matched'
+                  : 'Unmatched Color')}
+            </Text>
+          </View>
+
+          {item.match_percentage !== undefined && item.match_percentage !== null && (
+            <View style={styles.metricCol}>
+              <Text style={styles.metricVal}>
+                {Math.round(item.match_percentage)}%
+              </Text>
+              <Text style={styles.metricSub}>Accuracy</Text>
+            </View>
+          )}
+
+          {item.quality_score !== undefined && item.quality_score !== null && (
+            <View style={styles.metricCol}>
+              <Text style={styles.metricVal}>
+                {Math.round(item.quality_score)}%
+              </Text>
+              <Text style={styles.metricSub}>Clarity</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Rejection / Info reasons if available */}
+        {item.rejection_reasons && item.rejection_reasons.length > 0 && (
+          <View style={styles.rejectionBox}>
+            <Text style={styles.rejectionReasonText}>
+              Note: {item.rejection_reasons.join(', ')}
+            </Text>
+          </View>
+        )}
+
+        {/* Footer Actions Row */}
+        <View style={styles.cardFooter}>
+          <Text style={styles.deviceIdText}>
+            {item.device_model ? `Device: ${item.device_model}` : `Version ${item.test_version}`}
+          </Text>
+
+          <Pressable
+            style={styles.deleteBtn}
+            disabled={isDeleting}
+            onPress={() => handleDelete(item)}>
+            {isDeleting ? (
+              <ActivityIndicator size="small" color="#EF4444" />
+            ) : (
+              <Text style={styles.deleteBtnText}>Delete</Text>
+            )}
+          </Pressable>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      {/* Navigation Top Bar */}
+      <View style={styles.navBar}>
+        <HeaderBackButton onPress={onBack} label="Back" />
+        <Text style={styles.navTitle}>Performed Tests History</Text>
+        <Pressable
+          style={styles.refreshIconBtn}
+          onPress={() => loadHistory(true)}>
+          <Text style={styles.refreshIconText}>↻</Text>
+        </Pressable>
+      </View>
+
+      {/* Stats Summary Strip */}
+      <View style={styles.statsStrip}>
+        <View style={styles.statBox}>
+          <Text style={styles.statNumber}>{history.length}</Text>
+          <Text style={styles.statLabel}>Total Tests</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={[styles.statNumber, { color: JalqTheme.colors.emerald }]}>
+            {matchedCount}
+          </Text>
+          <Text style={styles.statLabel}>Matched</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.statBox}>
+          <Text style={[styles.statNumber, { color: JalqTheme.colors.amber }]}>
+            {unmatchedCount}
+          </Text>
+          <Text style={styles.statLabel}>Unmatched</Text>
+        </View>
+      </View>
+
+      {/* History List */}
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={JalqTheme.colors.primary} />
+          <Text style={styles.loadingText}>Loading tests history...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={history}
+          keyExtractor={(item) => item.id}
+          renderItem={renderHistoryCard}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => loadHistory(true)}
+              tintColor={JalqTheme.colors.primary}
+            />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyIcon}>📋</Text>
+              <Text style={styles.emptyTitle}>No test history recorded</Text>
+              <Text style={styles.emptyDesc}>
+                Any chemical bottle test performed by field technicians will be automatically recorded in the database with full colorimetry metrics.
+              </Text>
+            </View>
+          }
+        />
+      )}
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#F8FAFC',
+  },
+  navBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: JalqTheme.spacing.base,
+    paddingVertical: JalqTheme.spacing.md,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E2E8F0',
+  },
+  navTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  refreshIconBtn: {
+    padding: 6,
+  },
+  refreshIconText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: JalqTheme.colors.primary,
+  },
+  statsStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 14,
+    marginHorizontal: 16,
+    marginTop: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  statBox: {
+    alignItems: 'center',
+  },
+  statNumber: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  statDivider: {
+    width: 1,
+    height: 24,
+    backgroundColor: '#E2E8F0',
+  },
+  listContent: {
+    padding: 16,
+    paddingBottom: 32,
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  testInfoCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  testName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 100,
+    borderWidth: 1,
+  },
+  badgeSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderColor: '#A7F3D0',
+  },
+  badgeWarning: {
+    backgroundColor: '#FFFBEB',
+    borderColor: '#FDE68A',
+  },
+  badgeRetake: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#FECACA',
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  textSuccess: {
+    color: '#059669',
+  },
+  textWarning: {
+    color: '#D97706',
+  },
+  textRetake: {
+    color: '#DC2626',
+  },
+  detailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 10,
+    marginBottom: 10,
+  },
+  colorSwatch: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.1)',
+    marginRight: 12,
+  },
+  readingsCol: {
+    flex: 1,
+  },
+  readingLabel: {
+    fontSize: 9,
+    fontWeight: '800',
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  readingValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  metricCol: {
+    alignItems: 'center',
+    marginLeft: 12,
+  },
+  metricVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0284C7',
+  },
+  metricSub: {
+    fontSize: 9,
+    color: '#64748B',
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  rejectionBox: {
+    backgroundColor: '#FFF1F2',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  rejectionReasonText: {
+    fontSize: 11,
+    color: '#BE123C',
+  },
+  cardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F1F5F9',
+  },
+  deviceIdText: {
+    fontSize: 11,
+    color: '#94A3B8',
+  },
+  deleteBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  deleteBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#EF4444',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: '#64748B',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    marginTop: 40,
+  },
+  emptyIcon: {
+    fontSize: 48,
+    marginBottom: 12,
+  },
+  emptyTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  emptyDesc: {
+    fontSize: 13,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 18,
+    maxWidth: 280,
+  },
+});

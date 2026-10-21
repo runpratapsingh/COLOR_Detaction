@@ -40,3 +40,11 @@ def test_api_analyze_endpoint(client, sample_synthetic_bottle_image):
     assert data["status"] in ["SUCCESS", "RETAKE_IMAGE", "AMBIGUOUS_RESULT", "NO_MATCH_FOUND"]
     assert "quality" in data
     assert "detected_color" in data
+
+
+def test_api_history_endpoint(client):
+    response = client.get("/api/v1/history")
+    assert response.status_code == 200
+    data = response.json()
+    assert isinstance(data, list)
+

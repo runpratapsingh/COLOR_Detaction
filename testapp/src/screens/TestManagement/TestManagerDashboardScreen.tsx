@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestSummary, UserSession } from '../../types/jalq';
-import { createNewTestVersion, fetchChemicalTests, publishChemicalTest } from '../../services/jalqApi';
+import { fetchChemicalTests, publishChemicalTest } from '../../services/jalqApi';
 
 interface TestManagerDashboardScreenProps {
   session: UserSession;
@@ -21,7 +21,8 @@ interface TestManagerDashboardScreenProps {
   onEditTest?: (testId: string) => void;
   onManageStandards: (testId: string) => void;
   onPreviewAsTester?: (testId: string) => void;
-  onSwitchToTesterMode: () => void;
+  onViewHistory: () => void;
+  onSwitchToTesterMode?: () => void;
   onLogout: () => void;
 }
 
@@ -31,21 +32,20 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
   onEditTest,
   onManageStandards,
   onPreviewAsTester,
+  onViewHistory,
   onSwitchToTesterMode,
   onLogout,
 }) => {
   const [tests, setTests] = useState<ChemicalTestSummary[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'DRAFT' | 'PUBLISHED'>('ALL');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
 
   const isMountedRef = useRef(true);
 
   const loadTests = useCallback(async () => {
     setLoading(true);
-    const filter = statusFilter === 'ALL' ? undefined : statusFilter;
     try {
-      const data = await fetchChemicalTests(filter, session.role);
+      const data = await fetchChemicalTests(undefined, session.role);
       if (isMountedRef.current) {
         setTests(data);
       }
@@ -58,17 +58,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
         setLoading(false);
       }
     }
-  }, [statusFilter, session.role]);
-
-  useFocusEffect(
-    useCallback(() => {
-      isMountedRef.current = true;
-      loadTests();
-      return () => {
-        isMountedRef.current = false;
-      };
-    }, [loadTests])
-  );
+  }, [session.role]);
 
   const handlePublish = async (testId: string) => {
     Alert.alert(
@@ -83,11 +73,6 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
             try {
               setActionLoadingId(testId);
               await publishChemicalTest(testId, session.role);
-              if (isMountedRef.current) {
-                setTests((prev) =>
-                  prev.map((t) => (t.test_id === testId ? { ...t, status: 'PUBLISHED' } : t))
-                );
-              }
               await loadTests();
               Alert.alert('Test Published', `Test '${testId}' is now live and available to field testers.`);
             } catch (err: any) {
@@ -103,35 +88,18 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
     );
   };
 
-  const handleNewVersion = async (testId: string) => {
-    Alert.alert(
-      'Create New Version',
-      `Create a new revision of '${testId}'? The current published version will remain frozen for historical records.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Create Version',
-          onPress: async () => {
-            try {
-              setActionLoadingId(testId);
-              const updated = await createNewTestVersion(testId, session.role);
-              await loadTests();
-              Alert.alert('New Version Created', `Version ${updated.version} created in DRAFT state.`);
-            } catch (err: any) {
-              Alert.alert('Version Error', err.message || 'Failed to create new version.');
-            } finally {
-              setActionLoadingId(null);
-            }
-          },
-        },
-      ]
-    );
-  };
+  useFocusEffect(
+    useCallback(() => {
+      isMountedRef.current = true;
+      loadTests();
+      return () => {
+        isMountedRef.current = false;
+      };
+    }, [loadTests])
+  );
 
   const renderTestCard = ({ item }: { item: ChemicalTestSummary }) => {
     const isPublished = item.status === 'PUBLISHED';
-    const isDraft = item.status === 'DRAFT';
-    const isBusy = actionLoadingId === item.test_id;
 
     return (
       <View style={styles.testCard}>
@@ -175,39 +143,39 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
           </Text>
         </View>
 
-        {/* Main Action Buttons */}
-        <View style={styles.actionRow}>
-          <Pressable
-            style={styles.standardsBtn}
-            onPress={() => onManageStandards(item.test_id)}>
-            <Text style={styles.standardsBtnText}>
-              Manage Standards ({item.standards_count})
-            </Text>
-          </Pressable>
-        </View>
-
-        {/* Secondary Workflow Row */}
-        <View style={styles.secondaryActionRow}>
-          {isDraft ? (
+        {/* Main Action Buttons: When Draft, allow Managing Standards & Publishing Live; When Published, allow Viewing Standards */}
+        {isPublished ? (
+          <View style={styles.actionRow}>
             <Pressable
-              style={[styles.publishLinkBtn, isBusy && styles.btnDisabled]}
-              disabled={isBusy}
+              style={styles.viewStandardsBtn}
+              onPress={() => onManageStandards(item.test_id)}>
+              <Text style={styles.viewStandardsBtnText}>
+                👁 View Added Standards ({item.standards_count})
+              </Text>
+            </Pressable>
+          </View>
+        ) : (
+          <View style={styles.actionRow}>
+            <Pressable
+              style={styles.standardsBtn}
+              onPress={() => onManageStandards(item.test_id)}>
+              <Text style={styles.standardsBtnText}>
+                Manage Standards ({item.standards_count})
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[styles.publishCardBtn, actionLoadingId === item.test_id && styles.btnDisabled]}
+              disabled={actionLoadingId === item.test_id}
               onPress={() => handlePublish(item.test_id)}>
-              {isBusy ? (
-                <ActivityIndicator size="small" color={JalqTheme.colors.emerald} />
+              {actionLoadingId === item.test_id ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
               ) : (
-                <Text style={styles.publishLinkText}>✓ Publish Live</Text>
+                <Text style={styles.publishCardBtnText}>✓ Publish Live</Text>
               )}
             </Pressable>
-          ) : (
-            <Pressable
-              style={[styles.newVersionLinkBtn, isBusy && styles.btnDisabled]}
-              disabled={isBusy}
-              onPress={() => handleNewVersion(item.test_id)}>
-              <Text style={styles.newVersionLinkText}>+ New Revision</Text>
-            </Pressable>
-          )}
-        </View>
+          </View>
+        )}
       </View>
     );
   };
@@ -227,8 +195,8 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
         </View>
 
         <View style={styles.topActionsRow}>
-          <Pressable style={styles.switchModeBtn} onPress={onSwitchToTesterMode}>
-            <Text style={styles.switchModeText}>Field Tester</Text>
+          <Pressable style={styles.historyBtn} onPress={onViewHistory}>
+            <Text style={styles.historyBtnText}>Test History</Text>
           </Pressable>
           <Pressable style={styles.logoutBtn} onPress={onLogout}>
             <Text style={styles.logoutText}>Sign Out</Text>
@@ -238,30 +206,11 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
 
       {/* Action Header Banner */}
       <View style={styles.actionHeader}>
-        <View style={styles.filterRow}>
-          <Pressable
-            style={[styles.filterChip, statusFilter === 'ALL' && styles.filterChipActive]}
-            onPress={() => setStatusFilter('ALL')}>
-            <Text style={[styles.filterChipText, statusFilter === 'ALL' && styles.filterChipTextActive]}>
-              All ({tests.length})
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.filterChip, statusFilter === 'DRAFT' && styles.filterChipActive]}
-            onPress={() => setStatusFilter('DRAFT')}>
-            <Text style={[styles.filterChipText, statusFilter === 'DRAFT' && styles.filterChipTextActive]}>
-              Drafts
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={[styles.filterChip, statusFilter === 'PUBLISHED' && styles.filterChipActive]}
-            onPress={() => setStatusFilter('PUBLISHED')}>
-            <Text style={[styles.filterChipText, statusFilter === 'PUBLISHED' && styles.filterChipTextActive]}>
-              Published
-            </Text>
-          </Pressable>
+        <View style={styles.headerTitleBox}>
+          <Text style={styles.headerSectionTitle}>Chemical Tests</Text>
+          <Text style={styles.headerSectionSubtitle}>
+            {tests.length} tests configured
+          </Text>
         </View>
 
         <Pressable style={styles.createTestBtn} onPress={onCreateTest}>
@@ -338,16 +287,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
-  switchModeBtn: {
-    backgroundColor: JalqTheme.colors.primaryGlow,
-    borderColor: JalqTheme.colors.borderFocus,
+  historyBtn: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
     borderWidth: 1,
     paddingHorizontal: 12,
     paddingVertical: 7,
     borderRadius: JalqTheme.radius.md,
   },
-  switchModeText: {
-    color: JalqTheme.colors.primary,
+  historyBtnText: {
+    color: '#0284C7',
     fontSize: 12,
     fontWeight: '700',
   },
@@ -374,30 +323,18 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     backgroundColor: JalqTheme.colors.bgCard,
   },
-  filterRow: {
-    flexDirection: 'row',
-    gap: 8,
+  headerTitleBox: {
+    flex: 1,
   },
-  filterChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: JalqTheme.radius.pill,
-    backgroundColor: JalqTheme.colors.bgInput,
-    borderWidth: 1,
-    borderColor: JalqTheme.colors.borderSubtle,
-  },
-  filterChipActive: {
-    backgroundColor: JalqTheme.colors.primaryGlow,
-    borderColor: JalqTheme.colors.borderFocus,
-  },
-  filterChipText: {
-    color: JalqTheme.colors.textSecondary,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  filterChipTextActive: {
-    color: JalqTheme.colors.primary,
+  headerSectionTitle: {
+    fontSize: 16,
     fontWeight: '700',
+    color: JalqTheme.colors.textPrimary,
+  },
+  headerSectionSubtitle: {
+    fontSize: 12,
+    color: JalqTheme.colors.textSecondary,
+    marginTop: 2,
   },
   createTestBtn: {
     backgroundColor: JalqTheme.colors.primary,
@@ -502,6 +439,34 @@ const styles = StyleSheet.create({
   },
   standardsBtnText: {
     color: JalqTheme.colors.textInverse,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  viewStandardsBtn: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderColor: JalqTheme.colors.primary,
+    borderWidth: 1.5,
+    paddingVertical: 10,
+    borderRadius: JalqTheme.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewStandardsBtnText: {
+    color: JalqTheme.colors.primary,
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  publishCardBtn: {
+    flex: 1,
+    backgroundColor: JalqTheme.colors.emerald,
+    paddingVertical: 10,
+    borderRadius: JalqTheme.radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  publishCardBtnText: {
+    color: '#FFFFFF',
     fontWeight: '700',
     fontSize: 13,
   },

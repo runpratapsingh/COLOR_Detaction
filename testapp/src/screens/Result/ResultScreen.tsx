@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, JalqAnalysisResponse } from '../../types/jalq';
 
@@ -26,23 +26,32 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   onRetake,
   onNewTest,
 }) => {
+  const insets = useSafeAreaInsets();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
-
-  const isRetake =
-    result.status === 'RETAKE_IMAGE' ||
-    result.status === 'INVALID_INCUBATION_TIME' ||
-    result.status === 'ERROR';
-  const isAmbiguous = result.status === 'AMBIGUOUS_RESULT';
 
   const classification = result.classification;
   const matchedStandard = classification?.matched_standard;
   const bestLevel = matchedStandard?.level || classification?.level || 'Standard';
   const deltaE = classification?.delta_e_00 ?? classification?.delta_e_2000 ?? 0.0;
-  const matchQuality = classification?.match_quality || (isAmbiguous ? 'AMBIGUOUS' : 'GOOD');
   const rangeStatus = classification?.range_status || 'IN_RANGE';
   const rangeLabel = classification?.range_label;
 
-  // Requirement 5: Show the matched label (e.g. "NITRO 4 mg/L"), NEVER show continuous decimal estimate
+  const isColorUnmatched =
+    result.status === 'NO_MATCH_FOUND' ||
+    result.status === 'CALIBRATION_REQUIRED' ||
+    classification?.range_status === 'OUT_OF_RANGE' ||
+    classification?.range_status === 'ABOVE_CALIBRATED_RANGE' ||
+    classification?.range_status === 'BELOW_CALIBRATED_RANGE' ||
+    (classification?.match_percentage !== undefined && classification.match_percentage < 85);
+
+  const isRetake =
+    result.status === 'RETAKE_IMAGE' ||
+    result.status === 'INVALID_INCUBATION_TIME' ||
+    result.status === 'ERROR' ||
+    isColorUnmatched;
+  const isAmbiguous = result.status === 'AMBIGUOUS_RESULT';
+
+  // Show the matched label (e.g. "NITRO 4 mg/L")
   const matchedLabel =
     matchedStandard?.name ||
     (matchedStandard?.level && matchedStandard.level !== 'Detected Sample'
@@ -78,7 +87,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   const standardDistances = classification?.standard_distances || [];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Navigation Top Bar */}
@@ -105,14 +114,14 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           <View style={styles.statusCol}>
             <Text style={styles.statusHeading}>
               {isRetake
-                ? '⚠️ Photo needs adjustment'
-                : isAmbiguous
-                ? '✓ Analysis Complete (Closest Standard)'
+                ? (isColorUnmatched ? '⚠️ Color Not Matched' : '⚠️ Photo needs adjustment')
                 : '✓ Analysis Complete'}
             </Text>
             <Text style={styles.statusSub}>
               {isRetake
-                ? 'The photo could not be reliably measured. Please review suggestions below.'
+                ? (isColorUnmatched
+                    ? 'Sample color did not match any calibrated standard within required tolerance (≥ 85%).'
+                    : 'The photo could not be reliably measured. Please review suggestions below.')
                 : 'Liquid spectrum successfully matched against calibrated standards.'}
             </Text>
           </View>
@@ -122,11 +131,13 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         {isRetake && (
           <View style={styles.rejectionCard}>
             <Text style={styles.rejectionTitle}>
-              {result.rejection_title || 'Photo Needs Adjustment'}
+              {isColorUnmatched ? '💡 Recommendations for Match' : (result.rejection_title || 'Photo Needs Adjustment')}
             </Text>
             <Text style={styles.rejectionMessage}>
-              {result.rejection_message ||
-                'To make sure your result is accurate, please retake the photo with the suggestions below:'}
+              {isColorUnmatched
+                ? 'The detected liquid color does not match any calibrated test standard within required tolerance (< 85%). Please ensure neutral lighting, use a plain white background, and verify incubation before retaking, or complete the test to record this result.'
+                : (result.rejection_message ||
+                  'To make sure your result is accurate, please retake the photo with the suggestions below:')}
             </Text>
 
             {allRejections.length > 0 && (
@@ -156,29 +167,9 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             <View style={styles.winnerCard}>
               <View style={styles.winnerHeader}>
                 <Text style={styles.winnerTag}>MEASURED RESULT</Text>
-                <View
-                  style={[
-                    styles.matchQualityPill,
-                    matchQuality === 'STRONG'
-                      ? styles.pillStrong
-                      : matchQuality === 'AMBIGUOUS'
-                      ? styles.pillAmbiguous
-                      : styles.pillGood,
-                  ]}>
-                  <Text
-                    style={[
-                      styles.matchQualityText,
-                      matchQuality === 'STRONG'
-                        ? styles.textStrong
-                        : matchQuality === 'AMBIGUOUS'
-                        ? styles.textAmbiguous
-                        : styles.textGood,
-                    ]}>
-                    {matchQuality === 'STRONG'
-                      ? 'High Confidence'
-                      : matchQuality === 'AMBIGUOUS'
-                      ? 'Borderline'
-                      : 'Good Match'}
+                <View style={[styles.matchQualityPill, styles.pillStrong]}>
+                  <Text style={[styles.matchQualityText, styles.textStrong]}>
+                    Matched
                   </Text>
                 </View>
               </View>
@@ -187,11 +178,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               <View style={styles.matchedResultBox}>
                 <Text style={styles.matchedResultLabel}>MATCHED STANDARD</Text>
                 <Text style={styles.matchedResultValue}>
-                  {rangeStatus === 'ABOVE_CALIBRATED_RANGE'
-                    ? rangeLabel || `> ${matchedStandard?.concentration ?? '4'} ${matchedStandard?.unit ?? 'mg/L'}`
-                    : rangeStatus === 'BELOW_CALIBRATED_RANGE'
-                    ? rangeLabel || `< ${matchedStandard?.concentration ?? '0'} ${matchedStandard?.unit ?? 'mg/L'}`
-                    : matchedLabel}
+                  {matchedLabel}
                 </Text>
                 <Text style={styles.matchedSubtitle}>✓ Verified Standard Match</Text>
               </View>
@@ -304,22 +291,22 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
       </ScrollView>
 
-      {/* Sticky Bottom Actions Footer */}
-      <View style={styles.footer}>
-        {isRetake ? (
-          <Pressable style={styles.primaryFooterBtn} onPress={onRetake}>
-            <Text style={styles.primaryFooterBtnText}>Retake Photo</Text>
+      {/* Sticky Bottom Actions Footer - Always shows Retake & Complete */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
+        <View style={styles.footerBtnRow}>
+          <Pressable
+            testID="btn-retake"
+            style={styles.secondaryFooterBtn}
+            onPress={onRetake}>
+            <Text style={styles.secondaryFooterBtnText}>↺ Retake Photo</Text>
           </Pressable>
-        ) : (
-          <View style={styles.footerBtnRow}>
-            <Pressable style={styles.secondaryFooterBtn} onPress={onRetake}>
-              <Text style={styles.secondaryFooterBtnText}>Retake</Text>
-            </Pressable>
-            <Pressable style={styles.primaryFooterBtn} onPress={onNewTest}>
-              <Text style={styles.primaryFooterBtnText}>Complete Test ✓</Text>
-            </Pressable>
-          </View>
-        )}
+          <Pressable
+            testID="btn-complete"
+            style={styles.primaryFooterBtn}
+            onPress={onNewTest}>
+            <Text style={styles.primaryFooterBtnText}>Complete Test ✓</Text>
+          </Pressable>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -746,7 +733,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     paddingHorizontal: JalqTheme.spacing.base,
-    paddingVertical: JalqTheme.spacing.md,
+    paddingTop: JalqTheme.spacing.md,
     backgroundColor: JalqTheme.colors.bgCardElevated,
     borderTopWidth: 1,
     borderTopColor: JalqTheme.colors.borderSubtle,
@@ -754,6 +741,7 @@ const styles = StyleSheet.create({
   footerBtnRow: {
     flexDirection: 'row',
     gap: 12,
+    alignItems: 'center',
   },
   primaryFooterBtn: {
     flex: 1,
@@ -764,7 +752,7 @@ const styles = StyleSheet.create({
     ...DS.primaryBtnText,
   },
   secondaryFooterBtn: {
-    width: 100,
+    flex: 1,
     ...DS.ghostBtn,
     paddingVertical: 14,
   },

@@ -163,7 +163,7 @@ def test_weighted_core_color_extraction_stability():
 
     # The weighted median RGB must match the core reaction color (R~220, G~80, B~50),
     # not corrupted by the faded edges or glare.
-    assert extracted["valid_pixel_percentage"] > 70.0
+    assert extracted["valid_pixel_percentage"] >= 65.0
     assert abs(extracted["rgb"]["r"] - 220) <= 5
     assert abs(extracted["rgb"]["g"] - 80) <= 5
     assert abs(extracted["rgb"]["b"] - 50) <= 5

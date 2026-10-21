@@ -10,7 +10,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -20,7 +19,7 @@ import { ChemicalTestDetail, ColorStandard, UserSession } from '../../types/jalq
 import {
   deleteColorStandard,
   fetchTestDetails,
-  updateColorStandard,
+  publishChemicalTest,
 } from '../../services/jalqApi';
 import { HeaderBackButton } from '../../components';
 
@@ -29,7 +28,6 @@ interface StandardManagementScreenProps {
   testId: string;
   onBack: () => void;
   onAddStandard: (testId: string) => void;
-  onEditStandard?: (testId: string, standardId: string) => void;
   onTestNow?: (testId: string) => void;
 }
 
@@ -43,11 +41,6 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
   const [test, setTest] = useState<ChemicalTestDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Edit Description Modal State
-  const [editingStandard, setEditingStandard] = useState<ColorStandard | null>(null);
-  const [editDesc, setEditDesc] = useState('');
-  const [editTolerance, setEditTolerance] = useState('3.0');
 
   // Detail Modal State (View analysis & samples)
   const [selectedStandardForDetails, setSelectedStandardForDetails] = useState<ColorStandard | null>(null);
@@ -109,32 +102,39 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
     );
   };
 
-  const handleOpenEdit = (std: ColorStandard) => {
-    setEditingStandard(std);
-    setEditDesc(std.description || '');
-    setEditTolerance(String(std.tolerance_delta_e || 3.0));
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editingStandard) return;
-    try {
-      setActionLoading(true);
-      await updateColorStandard(
-        testId,
-        editingStandard.id,
-        {
-          description: editDesc.trim(),
-          tolerance_delta_e: parseFloat(editTolerance) || 3.0,
-        },
-        session.role
+  const handlePublishTest = async () => {
+    if (!test) return;
+    if (sortedStandards.length < 2) {
+      Alert.alert(
+        'Standards Required',
+        'Please add at least 2 calibrated reference standards before publishing the test.'
       );
-      setEditingStandard(null);
-      await loadStandards();
-    } catch (err: any) {
-      Alert.alert('Update Error', err.message || 'Failed to update standard.');
-    } finally {
-      setActionLoading(false);
+      return;
     }
+
+    Alert.alert(
+      'Publish Chemical Test',
+      `Publish '${test.name}' with ${sortedStandards.length} calibrated standards? Once published, standards will become locked and active for field testing.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Publish Live',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setActionLoading(true);
+              await publishChemicalTest(testId, session.role);
+              await loadStandards();
+              Alert.alert('Test Published ✓', `'${test.name}' is now live and locked for field testing.`);
+            } catch (err: any) {
+              Alert.alert('Publish Error', err.message || 'Failed to publish test.');
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
 
@@ -237,11 +237,13 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
             </Text>
           </View>
 
-          <Pressable
-            style={styles.addStandardBtn}
-            onPress={() => onAddStandard(testId)}>
-            <Text style={styles.addStandardBtnText}>+ Add Standard</Text>
-          </Pressable>
+          {!isPublished && (
+            <Pressable
+              style={styles.addStandardBtn}
+              onPress={() => onAddStandard(testId)}>
+              <Text style={styles.addStandardBtnText}>+ Add Standard</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Section 3: Detailed Standard Cards */}
@@ -298,19 +300,15 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
                   <Text style={styles.detailsBtnText}>View Analysis</Text>
                 </Pressable>
 
-                <View style={styles.cardRightActions}>
-                  <Pressable
-                    style={styles.editCardBtn}
-                    onPress={() => handleOpenEdit(std)}>
-                    <Text style={styles.editCardBtnText}>Edit</Text>
-                  </Pressable>
-
-                  <Pressable
-                    style={styles.deleteCardBtn}
-                    onPress={() => handleDelete(std.id, `${std.value} ${std.unit}`)}>
-                    <Text style={styles.deleteCardBtnText}>Delete</Text>
-                  </Pressable>
-                </View>
+                {!isPublished && (
+                  <View style={styles.cardRightActions}>
+                    <Pressable
+                      style={styles.deleteCardBtn}
+                      onPress={() => handleDelete(std.id, `${std.value} ${std.unit}`)}>
+                      <Text style={styles.deleteCardBtnText}>Delete</Text>
+                    </Pressable>
+                  </View>
+                )}
               </View>
             </View>
           );
@@ -319,64 +317,37 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
 
       </ScrollView>
 
-      {/* MODAL 1: Edit Description & Tolerance */}
-      <Modal
-        visible={Boolean(editingStandard)}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setEditingStandard(null)}>
-        <SafeAreaView style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>
-              Edit Standard ({editingStandard?.value} {editingStandard?.unit})
+      {/* Sticky Bottom Actions */}
+      {!isPublished ? (
+        <View style={styles.footerBar}>
+          <Pressable
+            style={[
+              styles.publishActionBtn,
+              (sortedStandards.length < 2 || actionLoading) && styles.btnDisabled,
+            ]}
+            disabled={sortedStandards.length < 2 || actionLoading}
+            onPress={handlePublishTest}>
+            {actionLoading ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Text style={styles.publishActionText}>
+                ✓ Publish Test Live ({sortedStandards.length} Standards)
+              </Text>
+            )}
+          </Pressable>
+        </View>
+      ) : (
+        <View style={styles.footerBar}>
+          <View style={styles.publishedNoticeBox}>
+            <Text style={styles.publishedNoticeHeading}>● Test is Published & Locked</Text>
+            <Text style={styles.publishedNoticeText}>
+              Reference standards are immutable and active for field testing.
             </Text>
-            <Text style={styles.modalSubtitle}>
-              Update description or CIEDE2000 acceptance threshold.
-            </Text>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>WRITTEN DESCRIPTION</Text>
-              <TextInput
-                style={[styles.input, styles.modalTextArea]}
-                value={editDesc}
-                onChangeText={setEditDesc}
-                placeholder="Enter scientific description of reaction color..."
-                placeholderTextColor={JalqTheme.colors.textMuted}
-                multiline
-                numberOfLines={3}
-              />
-            </View>
-
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>COLOR MATCH TOLERANCE</Text>
-              <TextInput
-                style={styles.input}
-                value={editTolerance}
-                onChangeText={setEditTolerance}
-                keyboardType="numeric"
-                placeholder="3.0"
-                placeholderTextColor={JalqTheme.colors.textMuted}
-              />
-            </View>
-
-            <View style={styles.modalButtonsRow}>
-              <Pressable
-                style={styles.modalCancelBtn}
-                onPress={() => setEditingStandard(null)}>
-                <Text style={styles.modalCancelText}>Cancel</Text>
-              </Pressable>
-
-              <Pressable
-                style={styles.modalSaveBtn}
-                onPress={handleSaveEdit}>
-                <Text style={styles.modalSaveText}>Save Changes</Text>
-              </Pressable>
-            </View>
           </View>
-        </SafeAreaView>
-      </Modal>
+        </View>
+      )}
 
-      {/* MODAL 2: View Analysis & Samples Details */}
+      {/* MODAL: View Analysis & Samples Details */}
       <Modal
         visible={Boolean(selectedStandardForDetails)}
         animationType="slide"
@@ -736,19 +707,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
-  editCardBtn: {
-    backgroundColor: JalqTheme.colors.bgInput,
-    borderColor: JalqTheme.colors.borderSubtle,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-  },
-  editCardBtnText: {
-    color: JalqTheme.colors.primary,
-    fontSize: 11,
-    fontWeight: '700',
-  },
   deleteCardBtn: {
     backgroundColor: JalqTheme.colors.badgeErrorBg,
     borderColor: JalqTheme.colors.badgeErrorBorder,
@@ -789,6 +747,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '700',
+  },
+  footerBar: {
+    padding: JalqTheme.spacing.base,
+    backgroundColor: JalqTheme.colors.bgCard,
+    borderTopWidth: 1,
+    borderTopColor: JalqTheme.colors.borderSubtle,
   },
   publishedNoticeBox: {
     backgroundColor: JalqTheme.colors.bgCard,
@@ -862,58 +826,6 @@ const styles = StyleSheet.create({
     color: JalqTheme.colors.textSecondary,
     fontSize: 16,
     fontWeight: '800',
-  },
-  fieldGroup: {
-    marginBottom: 12,
-  },
-  fieldLabel: {
-    fontSize: 9,
-    fontWeight: '800',
-    color: JalqTheme.colors.textSecondary,
-    marginBottom: 6,
-  },
-  input: {
-    backgroundColor: JalqTheme.colors.bgInput,
-    borderColor: JalqTheme.colors.borderSubtle,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: JalqTheme.colors.textPrimary,
-    fontSize: 13,
-  },
-  modalTextArea: {
-    minHeight: 70,
-    textAlignVertical: 'top',
-  },
-  modalButtonsRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginTop: 10,
-  },
-  modalCancelBtn: {
-    flex: 1,
-    backgroundColor: JalqTheme.colors.bgCardElevated,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalCancelText: {
-    color: JalqTheme.colors.textSecondary,
-    fontWeight: '700',
-    fontSize: 12,
-  },
-  modalSaveBtn: {
-    flex: 1,
-    backgroundColor: JalqTheme.colors.primary,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  modalSaveText: {
-    color: '#FFFFFF',
-    fontWeight: '800',
-    fontSize: 12,
   },
   modalScroll: {
     maxHeight: 380,

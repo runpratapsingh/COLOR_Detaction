@@ -1,11 +1,12 @@
 import { AnalysisResponse, AnalyzeParams } from '../types/colorDetection';
+import { JALQ_API_BASE } from './jalqApi';
 
 // Hosted endpoint on Render for FastAPI CV Service
 export const DEFAULT_API_URL = 'https://color-detaction.onrender.com/api/v1';
 
 export async function analyzeBottleImage(
   params: AnalyzeParams,
-  baseUrl: string = DEFAULT_API_URL
+  baseUrl: string = JALQ_API_BASE
 ): Promise<AnalysisResponse> {
   const formData = new FormData();
 

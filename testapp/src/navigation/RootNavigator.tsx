@@ -5,6 +5,7 @@ import { RootStackParamList } from './types';
 import { JalqTheme } from '../theme/colors';
 
 // Screens
+import { ServerConfigScreen } from '../screens/ServerConfig/ServerConfigScreen';
 import { LoginScreen } from '../screens/Login/LoginScreen';
 import { TestManagerDashboardScreen } from '../screens/TestManagement/TestManagerDashboardScreen';
 import { CreateEditTestScreen } from '../screens/TestManagement/CreateEditTestScreen';
@@ -15,6 +16,7 @@ import { TestDetailsScreen } from '../screens/TestDetails/TestDetailsScreen';
 import { IncubationScreen } from '../screens/Incubation/IncubationScreen';
 import { CameraCaptureScreen } from '../screens/CameraCapture/CameraCaptureScreen';
 import { ResultScreen } from '../screens/Result/ResultScreen';
+import { TestHistoryScreen } from '../screens/TestHistory/TestHistoryScreen';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -23,16 +25,26 @@ export const RootNavigator: React.FC = () => {
 
   return (
     <Stack.Navigator
-      initialRouteName="Login"
+      initialRouteName="ServerConfig"
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
         contentStyle: { backgroundColor: JalqTheme.colors.bgDark },
       }}>
+      {/* 0. Dynamic Server Configuration (First Screen) */}
+      <Stack.Screen name="ServerConfig">
+        {({ navigation }) => (
+          <ServerConfigScreen
+            onContinue={() => navigation.navigate('Login')}
+          />
+        )}
+      </Stack.Screen>
+
       {/* 1. Authentication */}
       <Stack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
+            onChangeServer={() => navigation.navigate('ServerConfig')}
             onLoginSuccess={(userSession) => {
               setSession(userSession);
               if (
@@ -70,6 +82,7 @@ export const RootNavigator: React.FC = () => {
               onPreviewAsTester={(testId) =>
                 navigation.navigate('TestDetails', { testId })
               }
+              onViewHistory={() => navigation.navigate('TestHistory')}
               onSwitchToTesterMode={() => navigation.navigate('TestList')}
               onLogout={() => {
                 logout();
@@ -222,6 +235,18 @@ export const RootNavigator: React.FC = () => {
             }}
           />
         )}
+      </Stack.Screen>
+
+      {/* 4. Test History Screen */}
+      <Stack.Screen name="TestHistory">
+        {({ navigation }) =>
+          session ? (
+            <TestHistoryScreen
+              session={session}
+              onBack={() => navigation.goBack()}
+            />
+          ) : null
+        }
       </Stack.Screen>
     </Stack.Navigator>
   );

@@ -3,6 +3,7 @@ import {
   ChemicalTestSummary,
   ColorStandard,
   JalqAnalysisResponse,
+  PerformedTestHistoryItem,
   ReferenceAnalysisResult,
   UserRole,
 } from '../types/jalq';
@@ -11,12 +12,78 @@ import {
 export let JALQ_API_BASE = 'https://color-detaction.onrender.com/api/v1';
 export let CURRENT_USER_ROLE: UserRole = 'TEST_MANAGER';
 
-export function setApiBaseUrl(url: string) {
-  let clean = url.replace(/\/+$/, '');
+export function getApiBaseUrl(): string {
+  return JALQ_API_BASE;
+}
+
+export function setApiBaseUrl(url: string): string {
+  let clean = url.trim().replace(/\/+$/, '');
+  if (!clean.startsWith('http://') && !clean.startsWith('https://')) {
+    clean = `https://${clean}`;
+  }
   if (!clean.endsWith('/api/v1')) {
     clean = `${clean}/api/v1`;
   }
   JALQ_API_BASE = clean;
+  return JALQ_API_BASE;
+}
+
+export async function testServerConnection(urlCandidate?: string): Promise<{
+  success: boolean;
+  url: string;
+  latencyMs?: number;
+  message: string;
+  version?: string;
+}> {
+  let targetBase = urlCandidate ? urlCandidate.trim().replace(/\/+$/, '') : JALQ_API_BASE;
+  if (!targetBase.startsWith('http://') && !targetBase.startsWith('https://')) {
+    targetBase = `https://${targetBase}`;
+  }
+  if (!targetBase.endsWith('/api/v1')) {
+    targetBase = `${targetBase}/api/v1`;
+  }
+
+  const startTime = Date.now();
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
+
+  try {
+    const res = await fetch(`${targetBase}/health`, {
+      method: 'GET',
+      headers: { Accept: 'application/json' },
+      signal: controller.signal,
+    });
+    clearTimeout(timeoutId);
+    const latency = Date.now() - startTime;
+
+    if (res.ok) {
+      const data = await res.json().catch(() => ({}));
+      return {
+        success: true,
+        url: targetBase,
+        latencyMs: latency,
+        message: 'Successfully reached FastAPI CV service.',
+        version: data.version || '1.0.0',
+      };
+    } else {
+      return {
+        success: false,
+        url: targetBase,
+        latencyMs: latency,
+        message: `Server returned HTTP ${res.status}: ${res.statusText}`,
+      };
+    }
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    const isTimeout = err?.name === 'AbortError';
+    return {
+      success: false,
+      url: targetBase,
+      message: isTimeout
+        ? 'Connection timed out (6s). Check if VS Code port visibility is set to Public.'
+        : (err?.message || 'Failed to connect to server endpoint.'),
+    };
+  }
 }
 
 export function setCurrentUserRole(role: UserRole) {
@@ -573,4 +640,43 @@ export async function analyzeBottleCapture(options: AnalyzeOptions): Promise<Jal
   }
 
   return payload as JalqAnalysisResponse;
+}
+
+/**
+ * Fetch the history of all performed chemical tests from the database.
+ */
+export async function fetchTestHistory(testId?: string): Promise<PerformedTestHistoryItem[]> {
+  const url = testId
+    ? `${JALQ_API_BASE}/history?test_id=${encodeURIComponent(testId)}&limit=100`
+    : `${JALQ_API_BASE}/history?limit=100`;
+
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch test history (${response.status})`);
+  }
+
+  const data = await response.json();
+  return Array.isArray(data) ? data : [];
+}
+
+/**
+ * Delete a specific test history record by ID.
+ */
+export async function deleteTestHistoryItem(resultId: string): Promise<void> {
+  const response = await fetch(`${JALQ_API_BASE}/history/${resultId}`, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to delete history record (${response.status})`);
+  }
 }

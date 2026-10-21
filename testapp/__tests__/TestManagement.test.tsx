@@ -71,7 +71,8 @@ jest.mock('../src/services/jalqApi', () => ({
 }));
 
 describe('Test Management Components', () => {
-  it('renders TestManagerDashboardScreen correctly', async () => {
+  it('renders TestManagerDashboardScreen correctly and shows View Added Standards on published cards', async () => {
+    const onManageStandards = jest.fn();
     let tree: any;
     await ReactTestRenderer.act(async () => {
       tree = ReactTestRenderer.create(
@@ -79,14 +80,19 @@ describe('Test Management Components', () => {
           session={mockManagerSession}
           onCreateTest={jest.fn()}
           onEditTest={jest.fn()}
-          onManageStandards={jest.fn()}
+          onManageStandards={onManageStandards}
           onPreviewAsTester={jest.fn()}
+          onViewHistory={jest.fn()}
           onSwitchToTesterMode={jest.fn()}
           onLogout={jest.fn()}
         />
       );
     });
     expect(tree).toBeDefined();
+
+    // Verify "View Added Standards" text is present for the published test
+    const allText = tree.root.findAllByType('Text').map((t: any) => t.props.children).flat().join(' ');
+    expect(allText).toContain('View Added Standards');
   });
 
   it('renders CreateEditTestScreen correctly', async () => {

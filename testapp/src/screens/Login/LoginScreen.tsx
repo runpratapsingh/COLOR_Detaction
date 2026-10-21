@@ -13,10 +13,11 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { JalqTheme, DS } from '../../theme/colors';
 import { UserRole, UserSession } from '../../types/jalq';
-import { setCurrentUserRole } from '../../services/jalqApi';
+import { getApiBaseUrl, setCurrentUserRole } from '../../services/jalqApi';
 
 interface LoginScreenProps {
   onLoginSuccess: (session: UserSession) => void;
+  onChangeServer?: () => void;
 }
 
 // Dedicated login credentials for client testing & production verification
@@ -48,7 +49,10 @@ const PRESET_ACCOUNTS: PresetAccount[] = [
   },
 ];
 
-export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
+export const LoginScreen: React.FC<LoginScreenProps> = ({
+  onLoginSuccess,
+  onChangeServer,
+}) => {
   const [username, setUsername] = useState('engineer');
   const [password, setPassword] = useState('tester123');
   const [showPassword, setShowPassword] = useState(false);
@@ -110,6 +114,18 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
             <Text style={styles.brandName}>JalQ</Text>
             <Text style={styles.brandTagline}>Chemical Liquid Color Analysis System</Text>
           </View>
+
+          {/* ── Dynamic Server Configuration Pill ───────────────────── */}
+          {onChangeServer && (
+            <Pressable style={styles.serverPill} onPress={onChangeServer}>
+              <View style={styles.serverStatusDot} />
+              <Text style={styles.serverPillLabel}>Server:</Text>
+              <Text style={styles.serverPillUrl} numberOfLines={1}>
+                {getApiBaseUrl().replace(/\/api\/v1\/?$/, '')}
+              </Text>
+              <Text style={styles.serverPillAction}>Change ⚙️</Text>
+            </Pressable>
+          )}
 
           {/* ── Login Card ─────────────────────────────────────────── */}
           <View style={styles.card}>
@@ -437,6 +453,45 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
     fontWeight: '700',
     color: JalqTheme.colors.primary,
+  },
+  serverPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginBottom: 16,
+    maxWidth: '92%',
+  },
+  serverStatusDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    marginRight: 6,
+  },
+  serverPillLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748B',
+    marginRight: 4,
+  },
+  serverPillUrl: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0F172A',
+    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    flexShrink: 1,
+    marginRight: 6,
+  },
+  serverPillAction: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#0284C7',
   },
 });
 

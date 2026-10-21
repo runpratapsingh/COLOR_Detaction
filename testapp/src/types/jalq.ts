@@ -253,4 +253,27 @@ export type DemoScreen =
   | 'test_manager_dashboard'
   | 'create_edit_test'
   | 'standard_management'
-  | 'add_standard';
+  | 'add_standard'
+  | 'test_history';
+
+export interface PerformedTestHistoryItem {
+  id: string;
+  test_id?: string;
+  test_name?: string;
+  test_version: number;
+  status: string;
+  detected_color?: string;
+  detected_level?: string;
+  matched_standard_id?: string;
+  matched_standard_value?: number;
+  lab_l?: number;
+  lab_a?: number;
+  lab_b?: number;
+  delta_e?: number;
+  match_percentage?: number;
+  confidence: number;
+  quality_score: number;
+  rejection_reasons?: string[];
+  device_model?: string;
+  created_at: string;
+}

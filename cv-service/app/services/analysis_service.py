@@ -694,9 +694,13 @@ class AnalysisService:
 
             if self.db:
                 try:
+                    test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
                     ResultRepository(self.db).save_result(
                         chemical_test_id=chemical_test.id if hasattr(chemical_test, "id") else None,
+                        test_id=effective_code,
+                        test_version=test_ver,
                         status=status,
+                        detected_color=det_hex,
                         lab_l=extracted_color["lab"]["l"],
                         lab_a=extracted_color["lab"]["a"],
                         lab_b=extracted_color["lab"]["b"],
@@ -705,8 +709,8 @@ class AnalysisService:
                         rejection_reasons=rejection_reasons,
                         device_model=device_model,
                     )
-                except Exception:
-                    pass
+                except Exception as e:
+                    logger.error(f"Failed to persist rejection result to DB: {e}")
 
             if debug:
                 response["debug_artifacts"] = self._create_debug_artifacts(
@@ -879,14 +883,21 @@ class AnalysisService:
             "recommendations": recommendations,
         }
 
-        # 10. Database Persistence (optional)
+        # 10. Database Persistence
         if self.db:
             try:
+                test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
+                matched_std_id = matched_standard.get("id") if matched_standard else None
+                matched_std_val = matched_standard.get("concentration") if matched_standard else None
                 ResultRepository(self.db).save_result(
                     chemical_test_id=chemical_test.id if hasattr(chemical_test, "id") else None,
+                    test_id=effective_code,
+                    test_version=test_ver,
                     status=status,
-                    detected_color=matched_color_name,
+                    detected_color=detected_hex or matched_color_name,
                     detected_level=matched_level,
+                    matched_standard_id=matched_std_id,
+                    matched_standard_value=matched_std_val,
                     lab_l=extracted_color["lab"]["l"],
                     lab_a=extracted_color["lab"]["a"],
                     lab_b=extracted_color["lab"]["b"],
@@ -897,8 +908,8 @@ class AnalysisService:
                     rejection_reasons=rejection_reasons if rejection_reasons else None,
                     device_model=device_model,
                 )
-            except Exception:
-                pass
+            except Exception as e:
+                logger.error(f"Failed to persist analysis result to DB: {e}")
 
         # 11. Debug Visualizations & Artifact Generation
         if debug:

@@ -275,6 +275,13 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
         </View>
       </View>
 
+      {/* Accuracy Tip Banner */}
+      <View style={styles.accuracyTipBanner}>
+        <Text style={styles.accuracyTipText}>
+          📄 Place a white paper/card behind bottle for optimal accuracy
+        </Text>
+      </View>
+
       {/* Main Viewfinder Frame */}
       <View style={styles.viewfinderContainer}>
         {device && hasPermission ? (
@@ -332,14 +339,39 @@ export const CameraCaptureScreen: React.FC<CameraCaptureScreenProps> = ({
 
         {/* Main Capture Shutter Button */}
         <Pressable
-          style={[styles.shutterOuterRing, isAnalyzing && styles.shutterDisabled]}
+          style={[
+            styles.shutterOuterRing,
+            captureStatus === 'ready' && styles.shutterOuterRingReady,
+            isAnalyzing && styles.shutterDisabled,
+          ]}
           onPress={handleCapturePhoto}
           disabled={isAnalyzing}>
-          <View style={styles.shutterInnerButton} />
+          <View
+            style={[
+              styles.shutterInnerButton,
+              captureStatus === 'ready' && styles.shutterInnerButtonReady,
+            ]}
+          />
         </Pressable>
 
         <View style={styles.dockPlaceholder}>
-          <Text style={styles.dockTipsText}>Keep steady</Text>
+          <Text
+            style={[
+              styles.dockTipsText,
+              captureStatus === 'ready' && styles.dockTipsTextReady,
+            ]}>
+            {captureStatus === 'ready'
+              ? '✓ Ready'
+              : captureStatus === 'too_dark'
+              ? '🌑 Too dark'
+              : captureStatus === 'too_bright'
+              ? '☀️ Too bright'
+              : captureStatus === 'too_close'
+              ? '↔️ Move back'
+              : captureStatus === 'too_far'
+              ? '🔍 Move closer'
+              : 'Keep steady'}
+          </Text>
         </View>
       </View>
 
@@ -536,6 +568,21 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
   },
+  accuracyTipBanner: {
+    backgroundColor: 'rgba(14, 165, 233, 0.12)',
+    paddingVertical: 6,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(14, 165, 233, 0.25)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  accuracyTipText: {
+    color: JalqTheme.colors.primary,
+    fontSize: 11,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
   shutterOuterRing: {
     width: 74,
     height: 74,
@@ -547,11 +594,18 @@ const styles = StyleSheet.create({
     backgroundColor: JalqTheme.colors.primaryGlow,
     ...JalqTheme.shadow.cyan,
   },
+  shutterOuterRingReady: {
+    borderColor: JalqTheme.colors.emerald,
+    backgroundColor: 'rgba(16, 185, 129, 0.25)',
+  },
   shutterInnerButton: {
     width: 58,
     height: 58,
     borderRadius: 29,
     backgroundColor: JalqTheme.colors.primary,
+  },
+  shutterInnerButtonReady: {
+    backgroundColor: JalqTheme.colors.emerald,
   },
   shutterDisabled: {
     opacity: 0.4,
@@ -563,6 +617,11 @@ const styles = StyleSheet.create({
   dockTipsText: {
     color: JalqTheme.colors.textMuted,
     fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  dockTipsTextReady: {
+    color: JalqTheme.colors.emerald,
     fontWeight: '700',
   },
 });
