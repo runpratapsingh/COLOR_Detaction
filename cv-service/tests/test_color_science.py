@@ -81,6 +81,25 @@ def test_reference_matcher_ambiguous_result():
     assert res["match_quality"] == "AMBIGUOUS"
 
 
+def test_reference_matcher_same_concentration_multiple_shades():
+    """Verify that multiple standards with the SAME concentration (shade variants) do NOT trigger ambiguity."""
+    matcher = ReferenceMatcher(min_separation=2.0)
+    # 3 shade variants of the same 1.0 mg/L concentration
+    standards = [
+        {"id": "STD_1A", "name": "Standard 1A", "concentration": 1.0, "unit": "mg/L", "reference_color": {"lab": {"l": 50.0, "a": 20.0, "b": 30.0}}},
+        {"id": "STD_1B", "name": "Standard 1B", "concentration": 1.0, "unit": "mg/L", "reference_color": {"lab": {"l": 50.4, "a": 20.2, "b": 30.3}}},
+        {"id": "STD_1C", "name": "Standard 1C", "concentration": 1.0, "unit": "mg/L", "reference_color": {"lab": {"l": 49.7, "a": 19.8, "b": 29.6}}},
+    ]
+    # Sample matches STD_1B closely
+    sample_lab = (50.3, 20.1, 30.2)
+    res = matcher.match_standards(sample_lab, standards)
+    assert res["is_ambiguous"] is False
+    assert res["estimated_concentration"] == 1.0
+    assert res["matched_standard"]["id"] == "STD_1B"
+    assert res["match_quality"] == "STRONG"
+    assert res["range_status"] == "IN_RANGE"
+
+
 def test_api_list_tests(client):
     """Test GET /api/v1/tests returns chemical tests catalog."""
     resp = client.get("/api/v1/tests")

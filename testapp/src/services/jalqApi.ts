@@ -8,8 +8,8 @@ import {
   UserRole,
 } from '../types/jalq';
 
-// Production hosted endpoint on Render for FastAPI CV Service
-export let JALQ_API_BASE = 'https://color-detaction.onrender.com/api/v1';
+// Production hosted endpoint on AWS EC2 for FastAPI CV Service
+export let JALQ_API_BASE = 'http://100.59.196.14:8000/api/v1';
 export let CURRENT_USER_ROLE: UserRole = 'TEST_MANAGER';
 
 export function getApiBaseUrl(): string {
@@ -551,13 +551,54 @@ export async function deleteColorStandard(testId: string, standardId: string, ro
   return true;
 }
 
-export async function addReferenceSampleToStandard(testId: string, standardId: string, imageUri: string, role?: UserRole): Promise<ColorStandard> {
+export async function addReferenceSampleToStandard(
+  testId: string,
+  standardId: string,
+  imageUri: string,
+  imageBase64?: string,
+  role?: UserRole
+): Promise<ColorStandard> {
   const effRole = role || CURRENT_USER_ROLE;
+  const isDataUri = imageUri.startsWith('data:');
+  const candidateBase64 = imageBase64 || (isDataUri ? imageUri.split(',')[1] : null);
+
+  if (candidateBase64) {
+    try {
+      const jsonEndpoint = `${JALQ_API_BASE}/tests/${testId}/standards/${standardId}/samples-json`;
+      const jsonRes = await fetch(jsonEndpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+          'X-User-Role': effRole,
+        },
+        body: JSON.stringify({
+          image_base64: candidateBase64,
+        }),
+      });
+      const jsonPayload = await jsonRes.json().catch(() => null);
+      if (jsonRes.ok && jsonPayload) {
+        return jsonPayload as ColorStandard;
+      }
+      if (jsonPayload?.detail) {
+        throw new Error(jsonPayload.detail);
+      }
+    } catch (jsonErr: any) {
+      if (jsonErr.message && !jsonErr.message.includes('fetch') && !jsonErr.message.includes('Network request failed')) {
+        throw jsonErr;
+      }
+    }
+  }
+
   const formData = new FormData();
   const isPng = imageUri.toLowerCase().endsWith('.png');
+  const normalizedUri =
+    imageUri.startsWith('file://') || imageUri.startsWith('content://') || imageUri.startsWith('data:')
+      ? imageUri
+      : `file://${imageUri}`;
 
   formData.append('image', {
-    uri: imageUri,
+    uri: normalizedUri,
     name: isPng ? 'reference_sample.png' : 'reference_sample.jpg',
     type: isPng ? 'image/png' : 'image/jpeg',
   } as any);
@@ -578,6 +619,7 @@ export async function addReferenceSampleToStandard(testId: string, standardId: s
   }
   return payload as ColorStandard;
 }
+
 
 export interface AnalyzeOptions {
   imageUri: string;

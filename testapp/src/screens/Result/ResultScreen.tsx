@@ -17,6 +17,7 @@ interface ResultScreenProps {
   capturedUri: string;
   onRetake: () => void;
   onNewTest: () => void;
+  onViewHistory?: () => void;
 }
 
 export const ResultScreen: React.FC<ResultScreenProps> = ({
@@ -25,6 +26,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   capturedUri,
   onRetake,
   onNewTest,
+  onViewHistory,
 }) => {
   const insets = useSafeAreaInsets();
   const [showDiagnostics, setShowDiagnostics] = useState(false);
@@ -40,9 +42,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     result.status === 'NO_MATCH_FOUND' ||
     result.status === 'CALIBRATION_REQUIRED' ||
     classification?.range_status === 'OUT_OF_RANGE' ||
-    classification?.range_status === 'ABOVE_CALIBRATED_RANGE' ||
-    classification?.range_status === 'BELOW_CALIBRATED_RANGE' ||
-    (classification?.match_percentage !== undefined && classification.match_percentage < 85);
+    (classification?.match_quality === 'POOR' && (classification?.match_percentage ?? 100) < 50);
 
   const isRetake =
     result.status === 'RETAKE_IMAGE' ||
@@ -95,9 +95,16 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         <Text style={styles.navTitle} numberOfLines={1}>
           {test.name}
         </Text>
-        <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
-          <Text style={styles.headerDoneText}>Done</Text>
-        </Pressable>
+        <View style={styles.navBarActions}>
+          {onViewHistory && (
+            <Pressable style={styles.headerHistoryBtn} onPress={onViewHistory}>
+              <Text style={styles.headerHistoryText}>📋 History</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
+            <Text style={styles.headerDoneText}>Done</Text>
+          </Pressable>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -120,11 +127,21 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             <Text style={styles.statusSub}>
               {isRetake
                 ? (isColorUnmatched
-                    ? 'Sample color did not match any calibrated standard within required tolerance (≥ 85%).'
+                    ? 'Sample color did not match any calibrated standard within required tolerance.'
                     : 'The photo could not be reliably measured. Please review suggestions below.')
                 : 'Liquid spectrum successfully matched against calibrated standards.'}
             </Text>
           </View>
+        </View>
+
+        {/* Test Saved to History Notification Strip */}
+        <View style={styles.historySavedStrip}>
+          <Text style={styles.historySavedText}>✓ Reading recorded in Test History</Text>
+          {onViewHistory && (
+            <Pressable onPress={onViewHistory} style={styles.historySavedBtn}>
+              <Text style={styles.historySavedBtnText}>View All History →</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* RETAKE / REJECTION ALERT VIEW */}
@@ -334,6 +351,24 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     fontSize: 15,
   },
+  navBarActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  headerHistoryBtn: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: JalqTheme.radius.md,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+  },
+  headerHistoryText: {
+    color: '#0284C7',
+    fontWeight: '700',
+    fontSize: 12,
+  },
   headerDoneBtn: {
     paddingVertical: 5,
     paddingHorizontal: 12,
@@ -346,6 +381,31 @@ const styles = StyleSheet.create({
     color: JalqTheme.colors.primary,
     fontWeight: '700',
     fontSize: 12,
+  },
+  historySavedStrip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: JalqTheme.radius.md,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  historySavedText: {
+    fontSize: 12,
+    color: '#166534',
+    fontWeight: '600',
+  },
+  historySavedBtn: {
+    paddingVertical: 2,
+    paddingHorizontal: 4,
+  },
+  historySavedBtnText: {
+    fontSize: 12,
+    color: '#15803D',
+    fontWeight: '700',
   },
   scrollContent: {
     padding: JalqTheme.spacing.base,

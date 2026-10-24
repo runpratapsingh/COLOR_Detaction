@@ -185,6 +185,20 @@ def test_save_standards_numeric_order_and_multi_sample(client: TestClient, valid
     assert updated_std["sample_count"] == 2
     assert len(updated_std["samples"]) == 2
 
+    # Add third reference sample via JSON base64 endpoint
+    import base64
+    b64_img = base64.b64encode(valid_bottle_image_bytes).decode("utf-8")
+    res_sample_json = client.post(
+        f"/api/v1/tests/NITRATE_001/standards/{std_5_id}/samples-json",
+        json={"image_base64": b64_img},
+        headers={"X-User-Role": "TEST_MANAGER"},
+    )
+    assert res_sample_json.status_code == 200
+    updated_std_json = res_sample_json.json()
+    assert updated_std_json["sample_count"] == 3
+    assert len(updated_std_json["samples"]) == 3
+
+
 
 def test_publish_and_versioning_immutability(client: TestClient):
     """Publish test, verify immutability, and create new version."""
@@ -344,4 +358,58 @@ def test_idw_estimation_bracket_and_out_of_range():
     assert out_high_res["range_status"] == "ABOVE_CALIBRATED_RANGE"
     assert "Above calibrated range" in out_high_res["range_label"]
     assert out_high_res["estimated_concentration"] == 4.0  # Clamped to max tier
+
+
+def test_duplicate_bottle_color_prevention(client: TestClient):
+    """Verify that adding a standard with a color matching an existing bottle is blocked."""
+    headers = {"X-User-Role": "TEST_MANAGER"}
+    # Create a draft test
+    test_id = "COLOR_DUP_TEST"
+    client.post(
+        "/api/v1/tests",
+        json={
+            "test_id": test_id,
+            "name": "Color Duplicate Test",
+            "unit": "mg/L",
+            "sample_type": "Water",
+            "standards": [],
+        },
+        headers=headers,
+    )
+
+    # 1. Add first standard (1.0 mg/L) with orange color Lab: (72.4, 25.1, 52.8)
+    res_std1 = client.post(
+        f"/api/v1/tests/{test_id}/standards",
+        json={
+            "value": 1.0,
+            "unit": "mg/L",
+            "reference_color": {
+                "hex": "#F5A45B",
+                "rgb": {"r": 245, "g": 164, "b": 91},
+                "hsv": {"h": 28.4, "s": 62.9, "v": 96.1},
+                "lab": {"l": 72.4, "a": 25.1, "b": 52.8},
+            },
+        },
+        headers=headers,
+    )
+    assert res_std1.status_code == 200
+
+    # 2. Attempt to add second standard (2.0 mg/L) using the EXACT SAME bottle color (Lab: 72.4, 25.1, 52.8)
+    res_std2_dup = client.post(
+        f"/api/v1/tests/{test_id}/standards",
+        json={
+            "value": 2.0,
+            "unit": "mg/L",
+            "reference_color": {
+                "hex": "#F5A45B",
+                "rgb": {"r": 245, "g": 164, "b": 91},
+                "hsv": {"h": 28.4, "s": 62.9, "v": 96.1},
+                "lab": {"l": 72.5, "a": 25.0, "b": 52.9},  # ΔE < 0.2
+            },
+        },
+        headers=headers,
+    )
+    assert res_std2_dup.status_code == 400
+    assert "duplicate bottle color" in res_std2_dup.json()["detail"].lower()
+
 

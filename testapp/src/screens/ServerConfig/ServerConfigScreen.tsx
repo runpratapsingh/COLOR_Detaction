@@ -34,10 +34,17 @@ interface QuickPreset {
 const PRESETS: QuickPreset[] = [
   {
     id: 'cloud',
-    label: 'Render Cloud (Production)',
-    icon: '🌐',
-    url: 'https://color-detaction.onrender.com',
-    description: 'Always available public cloud instance',
+    label: 'AWS EC2 (Production)',
+    icon: '☁️',
+    url: 'http://100.59.196.14:8000',
+    description: 'Hosted on Amazon Linux 2023 EC2',
+  },
+  {
+    id: 'render',
+    label: 'Render Cloud Backend',
+    icon: '🚀',
+    url: 'https://chemical-cv-service.onrender.com',
+    description: 'Render Cloud deployment endpoint',
   },
   {
     id: 'vscode',

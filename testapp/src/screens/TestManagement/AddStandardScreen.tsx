@@ -18,10 +18,13 @@ import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { JalqTheme, DS } from '../../theme/colors';
 import { ChemicalTestDetail, ReferenceAnalysisResult, UserSession } from '../../types/jalq';
 import {
+  addReferenceSampleToStandard,
   analyzeReferenceSample,
   createColorStandard,
   fetchTestDetails,
+  updateColorStandard,
 } from '../../services/jalqApi';
+
 import { DEMO_REFERENCE_BOTTLE_BASE64 } from '../../constants/demoReferenceBottle';
 import { HeaderBackButton, InAppCameraModal, NormalizedRoi, SolutionAreaSelectorModal } from '../../components';
 
@@ -87,8 +90,14 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
         if (isMounted) {
           setTest(detail);
           setUnit(detail.unit);
-          const nextVal = detail.standards.length;
-          setStandardValue(String(nextVal));
+          if (detail.standards && detail.standards.length > 0) {
+            const maxVal = Math.max(...detail.standards.map((s) => s.value));
+            const nextSuggested = maxVal >= 1 ? Math.round((maxVal + 1) * 10) / 10 : 1.0;
+            setStandardValue(String(nextSuggested));
+          } else {
+            setStandardValue('0');
+          }
+
         }
       } catch (err) {
         if (isMounted) {
@@ -224,9 +233,160 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
     handleRunAnalysis(selectedImageUri || previewUri || undefined, confirmedRoi);
   };
 
+  const performAverageIntoStandard = async (targetStd: any) => {
+    setSaving(true);
+    try {
+      const targetUri = selectedImageUri || previewUri || '';
+      const updated = await addReferenceSampleToStandard(
+        testId,
+        targetStd.id,
+        targetUri,
+        imageBase64 || undefined,
+        session.role
+      );
+      Alert.alert(
+        'Bottle Calibrated ✓',
+        `Standard ${targetStd.value} ${targetStd.unit} now averages ${updated.sample_count || (targetStd.sample_count || 1) + 1} photos for improved accuracy and glare tolerance.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => onStandardSaved(testId),
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Calibration Error', err.message || 'Failed to update bottle calibration.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const performReplaceStandard = async (targetStd: any) => {
+    if (!analysisResult) return;
+    const det = analysisResult.detected_color;
+    const q = analysisResult.quality;
+    setSaving(true);
+    try {
+      await updateColorStandard(
+        testId,
+        targetStd.id,
+        {
+          reference_color: {
+            hex: det.hex,
+            rgb: {
+              r: Math.round(Number(det.rgb.r)),
+              g: Math.round(Number(det.rgb.g)),
+              b: Math.round(Number(det.rgb.b)),
+            },
+            hsv: {
+              h: Number(Number(det.hsv.h).toFixed(1)),
+              s: Number(Number(det.hsv.s).toFixed(1)),
+              v: Number(Number(det.hsv.v).toFixed(1)),
+            },
+            lab: {
+              l: Number(Number(det.lab.l).toFixed(2)),
+              a: Number(Number(det.lab.a).toFixed(2)),
+              b: Number(Number(det.lab.b).toFixed(2)),
+            },
+          },
+          reference_image:
+            (analysisResult.reference_image && analysisResult.reference_image.startsWith('data:')
+              ? analysisResult.reference_image
+              : '') ||
+            (imageBase64
+              ? imageBase64.startsWith('data:')
+                ? imageBase64
+                : `data:image/jpeg;base64,${imageBase64}`
+              : '') ||
+            (previewUri && previewUri.startsWith('data:') ? previewUri : '') ||
+            analysisResult.reference_image ||
+            '',
+          reset_samples: true,
+        },
+        session.role
+      );
+      Alert.alert(
+        'Bottle Color Updated ✓',
+        `Standard ${targetStd.value} ${targetStd.unit} color profile replaced with new photo.`,
+        [
+          {
+            text: 'OK',
+            onPress: () => onStandardSaved(testId),
+          },
+        ]
+      );
+    } catch (err: any) {
+      Alert.alert('Update Error', err.message || 'Failed to update standard color.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const localDuplicateColorCheck = React.useMemo(() => {
+    if (!analysisResult?.detected_color?.lab || !test?.standards || test.standards.length === 0) {
+      return null;
+    }
+    const newLab = analysisResult.detected_color.lab;
+    let minDistance = 999;
+    let matchedStd: any = null;
+
+    for (const std of test.standards) {
+      const stdLab = std.reference_color?.lab;
+      if (!stdLab) continue;
+      const dL = Number(newLab.l) - Number(stdLab.l);
+      const da = Number(newLab.a) - Number(stdLab.a);
+      const db = Number(newLab.b) - Number(stdLab.b);
+      const dist = Math.sqrt(dL * dL + da * da + db * db);
+      if (dist < minDistance) {
+        minDistance = dist;
+        matchedStd = std;
+      }
+    }
+
+    if (matchedStd && minDistance <= 5.0) {
+      const pct = Math.max(0, Math.round((1 - Math.min(25, minDistance) / 25) * 100));
+      return {
+        is_duplicate_color: true,
+        matched_standard_id: matchedStd.id,
+        matched_standard_name: matchedStd.name || matchedStd.color_name || `${matchedStd.value} ${matchedStd.unit}`,
+        matched_concentration: matchedStd.value,
+        unit: matchedStd.unit,
+        delta_e: Number(minDistance.toFixed(1)),
+        similarity_percentage: pct,
+        message: `Duplicate bottle color detected! This liquid color matches registered standard '${matchedStd.name || matchedStd.color_name}' (${matchedStd.value} ${matchedStd.unit}) with ${pct}% similarity.`,
+      };
+    }
+    return null;
+  }, [analysisResult, test?.standards]);
+
+  const duplicateColor = analysisResult?.duplicate_color_check?.is_duplicate_color
+    ? analysisResult.duplicate_color_check
+    : localDuplicateColorCheck;
+
   const handleSaveStandard = async () => {
     if (!analysisResult || !analysisResult.is_valid || !analysisResult.detected_color) {
       Alert.alert('Analysis Required', 'Run reference sample analysis and verify detected color before saving.');
+      return;
+    }
+
+    if (duplicateColor?.is_duplicate_color) {
+      Alert.alert(
+        'Duplicate Bottle Color Detected',
+        `This photo's liquid color is a ${duplicateColor.similarity_percentage}% match (ΔE = ${duplicateColor.delta_e}) to registered bottle "${duplicateColor.matched_standard_name}".\n\nEach chemical standard bottle must have a distinct color. You cannot add the same bottle color again as a new standard.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: `Average into ${duplicateColor.matched_concentration} ${duplicateColor.unit} Bottle`,
+            style: 'default',
+            onPress: () => {
+              const matched = test?.standards.find((s) => s.id === duplicateColor.matched_standard_id);
+              if (matched) {
+                performAverageIntoStandard(matched);
+              }
+            },
+          },
+        ]
+      );
       return;
     }
 
@@ -235,6 +395,32 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
       Alert.alert('Invalid Value', 'Please enter a valid numeric standard concentration value.');
       return;
     }
+
+    const existingStandard = test?.standards.find(
+      (s) => Math.abs(s.value - val) < 1e-4
+    );
+
+    if (existingStandard) {
+      Alert.alert(
+        'Bottle Already Configured',
+        `A reference standard for ${val} ${unit} is already saved in this test. How would you like to handle this photo?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Replace Previous Color',
+            style: 'destructive',
+            onPress: () => performReplaceStandard(existingStandard),
+          },
+          {
+            text: 'Average with Bottle (Recommended)',
+            style: 'default',
+            onPress: () => performAverageIntoStandard(existingStandard),
+          },
+        ]
+      );
+      return;
+    }
+
 
     const det = analysisResult.detected_color;
     const q = analysisResult.quality;
@@ -305,6 +491,7 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
     }
   };
 
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -353,6 +540,23 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
                 />
               </View>
             </View>
+
+            {(() => {
+              const valNum = parseFloat(standardValue);
+              const count = test?.standards.filter((s) => !isNaN(valNum) && Math.abs(s.value - valNum) < 1e-4).length || 0;
+              if (count === 0) return null;
+              return (
+                <View style={styles.shadeNoticeBox}>
+                  <Text style={styles.shadeNoticeTitle}>
+                    💡 Bottle Already Configured (1 Standard Exists)
+                  </Text>
+                  <Text style={styles.shadeNoticeDesc}>
+                    A standard for {standardValue} {unit} is already saved. Saving this photo will average its color with the existing bottle to remove glare and camera lighting noise, maintaining exactly 1 clean standard card.
+                  </Text>
+                </View>
+
+              );
+            })()}
           </View>
 
           {/* Step 2: Reference Sample Capture / Upload */}
@@ -593,19 +797,82 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
                     />
                   </View>
 
+                  {/* Duplicate Bottle Color Alert */}
+                  {duplicateColor?.is_duplicate_color && (
+                    <View style={styles.duplicateColorAlertBox}>
+                      <View style={styles.duplicateColorAlertHeader}>
+                        <Text style={styles.duplicateColorAlertIcon}>🛑</Text>
+                        <View style={styles.duplicateColorAlertHeaderTexts}>
+                          <Text style={styles.duplicateColorAlertTitle}>Duplicate Bottle Color Detected!</Text>
+                          <Text style={styles.duplicateColorAlertSubtitle}>
+                            {duplicateColor.similarity_percentage}% match (ΔE = {duplicateColor.delta_e}) with registered bottle
+                          </Text>
+                        </View>
+                      </View>
+                      <Text style={styles.duplicateColorAlertDesc}>
+                        The computer vision pipeline detected that this photo's liquid color matches your already registered bottle:{' '}
+                        <Text style={styles.boldText}>
+                          {duplicateColor.matched_standard_name} ({duplicateColor.matched_concentration} {duplicateColor.unit})
+                        </Text>. In chemical colorimetry, each standard bottle must have a distinct color. You cannot register the same bottle color again as a new standard.
+                      </Text>
+
+                      <View style={styles.duplicateColorActionsRow}>
+                        <Pressable
+                          style={styles.recalibrateExistingBtn}
+                          onPress={() => {
+                            const matched = test?.standards.find(
+                              (s) => s.id === duplicateColor.matched_standard_id
+                            );
+                            if (matched) {
+                              performAverageIntoStandard(matched);
+                            }
+                          }}>
+                          <Text style={styles.recalibrateExistingBtnText}>
+                            📸 Recalibrate {duplicateColor.matched_concentration} {duplicateColor.unit} Bottle
+                          </Text>
+                        </Pressable>
+
+                        <Pressable
+                          style={styles.retakeDifferentBtn}
+                          onPress={handleCaptureCamera}>
+                          <Text style={styles.retakeDifferentBtnText}>
+                            🔄 Retake with Next Bottle
+                          </Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
+
                   {/* Save Standard CTA */}
                   <Pressable
-                    style={[styles.saveStandardBtn, saving && styles.btnDisabled]}
-                    disabled={saving}
+                    style={[
+                      styles.saveStandardBtn,
+                      (saving || Boolean(duplicateColor?.is_duplicate_color)) && styles.btnDisabled,
+                      Boolean(duplicateColor?.is_duplicate_color) && styles.btnBlocked,
+                    ]}
+                    disabled={saving || Boolean(duplicateColor?.is_duplicate_color)}
                     onPress={handleSaveStandard}>
                     {saving ? (
                       <ActivityIndicator color="#FFFFFF" />
+                    ) : duplicateColor?.is_duplicate_color ? (
+                      <Text style={styles.saveStandardBtnText}>
+                        ⛔ Blocked: Duplicate Bottle Color
+                      </Text>
                     ) : (
                       <Text style={styles.saveStandardBtnText}>
-                        Save Standard ({standardValue} {unit})
+                        {(() => {
+                          const valNum = parseFloat(standardValue);
+                          const exists = test?.standards.some(
+                            (s) => !isNaN(valNum) && Math.abs(s.value - valNum) < 1e-4
+                          );
+                          return exists
+                            ? `✓ Update Bottle Calibration (${standardValue} ${unit})`
+                            : `Save Standard (${standardValue} ${unit})`;
+                        })()}
                       </Text>
                     )}
                   </Pressable>
+
                 </View>
               ) : (
                 /* Validation Failure Card */
@@ -1166,7 +1433,102 @@ const styles = StyleSheet.create({
     color: JalqTheme.colors.crimson,
     fontStyle: 'italic',
   },
+  shadeNoticeBox: {
+    marginTop: 12,
+    backgroundColor: '#F0F9FF',
+    borderWidth: 1,
+    borderColor: '#BAE6FD',
+    borderRadius: JalqTheme.radius.md,
+    padding: 10,
+  },
+  shadeNoticeTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0284C7',
+    marginBottom: 2,
+  },
+  shadeNoticeDesc: {
+    fontSize: 11,
+    color: '#0369A1',
+    lineHeight: 15,
+  },
   btnDisabled: {
     opacity: 0.5,
   },
+  btnBlocked: {
+    backgroundColor: '#9CA3AF',
+    borderColor: '#6B7280',
+  },
+  duplicateColorAlertBox: {
+    backgroundColor: '#FEF2F2',
+    borderColor: '#F87171',
+    borderWidth: 1.5,
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 14,
+    marginBottom: 10,
+  },
+  duplicateColorAlertHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  duplicateColorAlertIcon: {
+    fontSize: 22,
+    marginRight: 10,
+  },
+  duplicateColorAlertHeaderTexts: {
+    flex: 1,
+  },
+  duplicateColorAlertTitle: {
+    color: '#991B1B',
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  duplicateColorAlertSubtitle: {
+    color: '#B91C1C',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 1,
+  },
+  duplicateColorAlertDesc: {
+    color: '#7F1D1D',
+    fontSize: 12,
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  boldText: {
+    fontWeight: '800',
+  },
+  duplicateColorActionsRow: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  recalibrateExistingBtn: {
+    backgroundColor: '#DC2626',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  recalibrateExistingBtnText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  retakeDifferentBtn: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#DC2626',
+    borderWidth: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  retakeDifferentBtnText: {
+    color: '#DC2626',
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });
+

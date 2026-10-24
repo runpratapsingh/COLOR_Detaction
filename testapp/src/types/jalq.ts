@@ -141,7 +141,18 @@ export interface ReferenceAnalysisResult {
     normalized_liquid_roi?: [number, number, number, number];
   };
   warnings?: string[];
+  duplicate_color_check?: {
+    is_duplicate_color: boolean;
+    matched_standard_id: string;
+    matched_standard_name: string;
+    matched_concentration: number;
+    unit: string;
+    delta_e: number;
+    similarity_percentage: number;
+    message: string;
+  };
 }
+
 
 export interface StandardDistanceResult {
   id: string;

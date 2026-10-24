@@ -3,8 +3,10 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StatusBar,
   StyleSheet,
   Text,
@@ -30,6 +32,7 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [selectedTest, setSelectedTest] = useState<PerformedTestHistoryItem | null>(null);
 
   const isMountedRef = useRef(true);
 
@@ -126,7 +129,7 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
       : '#38BDF8';
 
     return (
-      <View style={styles.card}>
+      <Pressable style={styles.card} onPress={() => setSelectedTest(item)}>
         {/* Top Header Row */}
         <View style={styles.cardHeader}>
           <View style={styles.testInfoCol}>
@@ -210,14 +213,20 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
 
         {/* Footer Actions Row */}
         <View style={styles.cardFooter}>
-          <Text style={styles.deviceIdText}>
-            {item.device_model ? `Device: ${item.device_model}` : `Version ${item.test_version}`}
-          </Text>
+          <View style={styles.footerLeftCol}>
+            <Text style={styles.deviceIdText}>
+              {item.device_model ? `Device: ${item.device_model}` : `Version ${item.test_version}`}
+            </Text>
+            <Text style={styles.tapToViewText}>Tap to view full test ›</Text>
+          </View>
 
           <Pressable
             style={styles.deleteBtn}
             disabled={isDeleting}
-            onPress={() => handleDelete(item)}>
+            onPress={(e) => {
+              e?.stopPropagation?.();
+              handleDelete(item);
+            }}>
             {isDeleting ? (
               <ActivityIndicator size="small" color="#EF4444" />
             ) : (
@@ -225,7 +234,7 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
             )}
           </Pressable>
         </View>
-      </View>
+      </Pressable>
     );
   };
 
@@ -296,6 +305,135 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
             </View>
           }
         />
+      )}
+
+      {/* Test Inspection Detail Modal */}
+      {selectedTest && (
+        <Modal
+          visible={Boolean(selectedTest)}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedTest(null)}>
+          <View style={styles.modalBackdrop}>
+            <View style={styles.modalCard}>
+              <View style={styles.modalHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.modalTestTitle} numberOfLines={1}>
+                    {selectedTest.test_name || selectedTest.test_id}
+                  </Text>
+                  <Text style={styles.modalDateText}>
+                    {formatDate(selectedTest.created_at)}
+                  </Text>
+                </View>
+                <Pressable
+                  style={styles.modalCloseBtn}
+                  onPress={() => setSelectedTest(null)}>
+                  <Text style={styles.modalCloseText}>✕</Text>
+                </Pressable>
+              </View>
+
+              <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
+                {/* Status Indicator */}
+                <View
+                  style={[
+                    styles.modalStatusBanner,
+                    selectedTest.status === 'SUCCESS'
+                      ? styles.badgeSuccess
+                      : selectedTest.status === 'NO_MATCH_FOUND'
+                      ? styles.badgeWarning
+                      : styles.badgeRetake,
+                  ]}>
+                  <Text style={styles.modalStatusText}>
+                    {selectedTest.status === 'SUCCESS'
+                      ? '✓ Chemical Reading Matched'
+                      : selectedTest.status === 'NO_MATCH_FOUND'
+                      ? '⚠️ Unmatched / Out of Range'
+                      : 'Photo Needs Retake'}
+                  </Text>
+                </View>
+
+                {/* Primary Metric Row */}
+                <View style={styles.modalMetricRow}>
+                  <View style={styles.modalSwatchCol}>
+                    <View
+                      style={[
+                        styles.modalColorSwatch,
+                        {
+                          backgroundColor:
+                            selectedTest.detected_color?.startsWith('#')
+                              ? selectedTest.detected_color
+                              : '#38BDF8',
+                        },
+                      ]}
+                    />
+                    <Text style={styles.modalHexText}>
+                      {selectedTest.detected_color || '#38BDF8'}
+                    </Text>
+                  </View>
+
+                  <View style={styles.modalReadingCol}>
+                    <Text style={styles.modalReadingLabel}>MEASURED LEVEL</Text>
+                    <Text style={styles.modalReadingVal}>
+                      {selectedTest.detected_level ||
+                        (selectedTest.matched_standard_value !== undefined &&
+                        selectedTest.matched_standard_value !== null
+                          ? `${selectedTest.matched_standard_value} mg/L`
+                          : 'Sample Reading')}
+                    </Text>
+                    {selectedTest.match_percentage !== undefined && (
+                      <Text style={styles.modalAccuracyText}>
+                        Accuracy: {Math.round(selectedTest.match_percentage)}%
+                      </Text>
+                    )}
+                  </View>
+                </View>
+
+                {/* Specs Box */}
+                <View style={styles.modalSpecsBox}>
+                  <View style={styles.modalSpecItem}>
+                    <Text style={styles.modalSpecKey}>Assay ID</Text>
+                    <Text style={styles.modalSpecVal}>{selectedTest.test_id}</Text>
+                  </View>
+                  <View style={styles.modalSpecItem}>
+                    <Text style={styles.modalSpecKey}>Clarity Score</Text>
+                    <Text style={styles.modalSpecVal}>
+                      {selectedTest.quality_score
+                        ? `${Math.round(selectedTest.quality_score)}%`
+                        : '85%'}
+                    </Text>
+                  </View>
+                  <View style={styles.modalSpecItem}>
+                    <Text style={styles.modalSpecKey}>Captured Device</Text>
+                    <Text style={styles.modalSpecVal}>
+                      {selectedTest.device_model || 'Mobile Device'}
+                    </Text>
+                  </View>
+                  <View style={styles.modalSpecItem}>
+                    <Text style={styles.modalSpecKey}>Protocol Version</Text>
+                    <Text style={styles.modalSpecVal}>v{selectedTest.test_version}</Text>
+                  </View>
+                </View>
+
+                {/* Notes */}
+                {selectedTest.rejection_reasons &&
+                  selectedTest.rejection_reasons.length > 0 && (
+                    <View style={styles.modalRejectionBox}>
+                      <Text style={styles.modalRejectionHeading}>Observations & Notes:</Text>
+                      <Text style={styles.modalRejectionText}>
+                        {selectedTest.rejection_reasons.join('\n')}
+                      </Text>
+                    </View>
+                  )}
+              </ScrollView>
+
+              <Pressable
+                style={styles.modalDoneBtn}
+                onPress={() => setSelectedTest(null)}>
+                <Text style={styles.modalDoneBtnText}>Close</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Modal>
       )}
     </SafeAreaView>
   );
@@ -501,6 +639,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94A3B8',
   },
+  footerLeftCol: {
+    flex: 1,
+    marginRight: 8,
+  },
+  tapToViewText: {
+    fontSize: 11,
+    color: JalqTheme.colors.primary,
+    fontWeight: '600',
+    marginTop: 2,
+  },
   deleteBtn: {
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -509,6 +657,166 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#EF4444',
+  },
+
+  // Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '80%',
+    padding: 20,
+    ...JalqTheme.shadow.md,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 12,
+  },
+  modalTestTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: '#0F172A',
+  },
+  modalDateText: {
+    fontSize: 12,
+    color: '#64748B',
+    marginTop: 2,
+  },
+  modalCloseBtn: {
+    padding: 6,
+    borderRadius: 8,
+    backgroundColor: '#F1F5F9',
+  },
+  modalCloseText: {
+    fontSize: 14,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  modalBody: {
+    marginBottom: 16,
+  },
+  modalStatusBanner: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalStatusText: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  modalMetricRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F8FAFC',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 16,
+    gap: 16,
+  },
+  modalSwatchCol: {
+    alignItems: 'center',
+  },
+  modalColorSwatch: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    ...JalqTheme.shadow.sm,
+  },
+  modalHexText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748B',
+    marginTop: 4,
+  },
+  modalReadingCol: {
+    flex: 1,
+  },
+  modalReadingLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#94A3B8',
+    letterSpacing: 0.5,
+  },
+  modalReadingVal: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: '#0F172A',
+    marginTop: 2,
+  },
+  modalAccuracyText: {
+    fontSize: 12,
+    color: '#0284C7',
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  modalSpecsBox: {
+    backgroundColor: '#F8FAFC',
+    borderRadius: 10,
+    padding: 12,
+    gap: 8,
+    marginBottom: 12,
+  },
+  modalSpecItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  modalSpecKey: {
+    fontSize: 12,
+    color: '#64748B',
+    fontWeight: '500',
+  },
+  modalSpecVal: {
+    fontSize: 12,
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  modalRejectionBox: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  modalRejectionHeading: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#991B1B',
+    marginBottom: 4,
+  },
+  modalRejectionText: {
+    fontSize: 12,
+    color: '#B91C1C',
+    lineHeight: 16,
+  },
+  modalDoneBtn: {
+    backgroundColor: JalqTheme.colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalDoneBtnText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
   },
   centerContainer: {
     flex: 1,

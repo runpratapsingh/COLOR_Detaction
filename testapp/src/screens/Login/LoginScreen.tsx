@@ -115,17 +115,19 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <Text style={styles.brandTagline}>Chemical Liquid Color Analysis System</Text>
           </View>
 
-          {/* ── Dynamic Server Configuration Pill ───────────────────── */}
-          {onChangeServer && (
-            <Pressable style={styles.serverPill} onPress={onChangeServer}>
-              <View style={styles.serverStatusDot} />
-              <Text style={styles.serverPillLabel}>Server:</Text>
-              <Text style={styles.serverPillUrl} numberOfLines={1}>
-                {getApiBaseUrl().replace(/\/api\/v1\/?$/, '')}
-              </Text>
-              <Text style={styles.serverPillAction}>Change ⚙️</Text>
-            </Pressable>
-          )}
+          {/* ── Direct Server Endpoint Pill ───────────────────────── */}
+          <View style={styles.serverPill}>
+            <View style={styles.serverStatusDot} />
+            <Text style={styles.serverPillLabel}>Server:</Text>
+            <Text style={styles.serverPillUrl} numberOfLines={1}>
+              {getApiBaseUrl().replace(/\/api\/v1\/?$/, '')}
+            </Text>
+            {onChangeServer && (
+              <Pressable onPress={onChangeServer}>
+                <Text style={styles.serverPillAction}>Change ⚙️</Text>
+              </Pressable>
+            )}
+          </View>
 
           {/* ── Login Card ─────────────────────────────────────────── */}
           <View style={styles.card}>

@@ -17,6 +17,7 @@ def generate_uuid() -> str:
 
 
 def normalize_db_url(url: str) -> str:
+    url = url.strip().strip('"').strip("'")
     # SQLAlchemy requires driver prefix mysql+pymysql:// when using PyMySQL
     if url.startswith("mysql://"):
         url = url.replace("mysql://", "mysql+pymysql://", 1)

@@ -14,14 +14,18 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { JalqTheme } from '../../theme/colors';
 import { ChemicalTestDetail, ColorStandard, UserSession } from '../../types/jalq';
 import {
+  addReferenceSampleToStandard,
   deleteColorStandard,
   fetchTestDetails,
   publishChemicalTest,
 } from '../../services/jalqApi';
+import { DEMO_REFERENCE_BOTTLE_BASE64 } from '../../constants/demoReferenceBottle';
 import { HeaderBackButton } from '../../components';
+
 
 interface StandardManagementScreenProps {
   session: UserSession;
@@ -29,6 +33,7 @@ interface StandardManagementScreenProps {
   onBack: () => void;
   onAddStandard: (testId: string) => void;
   onTestNow?: (testId: string) => void;
+  onEditTest?: (testId: string) => void;
 }
 
 export const StandardManagementScreen: React.FC<StandardManagementScreenProps> = ({
@@ -37,6 +42,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
   onBack,
   onAddStandard,
   onTestNow,
+  onEditTest,
 }) => {
   const [test, setTest] = useState<ChemicalTestDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -102,12 +108,134 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
     );
   };
 
+  const processNewSample = async (std: ColorStandard, uri: string, base64?: string) => {
+    try {
+      setActionLoading(true);
+      const updatedStd = await addReferenceSampleToStandard(
+        testId,
+        std.id,
+        uri,
+        base64,
+        session.role
+      );
+      await loadStandards();
+      Alert.alert(
+        'Bottle Calibrated ✓',
+        `Standard ${std.value} ${std.unit} now averages ${updatedStd.sample_count || 2} photos for improved accuracy and glare tolerance.`
+      );
+    } catch (err: any) {
+      Alert.alert('Calibration Error', err.message || 'Failed to add bottle sample.');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleAddSampleToStandard = (std: ColorStandard) => {
+    Alert.alert(
+      `Calibrate ${std.value} ${std.unit} Bottle`,
+      'Add another photo of this same bottle under different angle or ambient lighting. The app will calculate the median color to eliminate glare and noise.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: '📸 Take Photo (Camera)',
+          onPress: async () => {
+            try {
+              const res = await launchCamera({
+                mediaType: 'photo',
+                quality: 0.9,
+                includeBase64: true,
+                maxWidth: 1600,
+                maxHeight: 1600,
+              });
+              if (res.assets && res.assets[0]?.uri) {
+                await processNewSample(std, res.assets[0].uri, res.assets[0].base64);
+              }
+            } catch (err: any) {
+              Alert.alert('Camera Error', err.message || 'Failed to capture photo.');
+            }
+          },
+        },
+        {
+          text: '🖼️ Choose from Gallery',
+          onPress: async () => {
+            try {
+              const res = await launchImageLibrary({
+                mediaType: 'photo',
+                quality: 0.9,
+                includeBase64: true,
+                maxWidth: 1600,
+                maxHeight: 1600,
+              });
+              if (res.assets && res.assets[0]?.uri) {
+                await processNewSample(std, res.assets[0].uri, res.assets[0].base64);
+              }
+            } catch (err: any) {
+              Alert.alert('Gallery Error', err.message || 'Failed to select image.');
+            }
+          },
+        },
+        {
+          text: '🧪 Use Demo Sample',
+          onPress: async () => {
+            await processNewSample(
+              std,
+              `data:image/jpeg;base64,${DEMO_REFERENCE_BOTTLE_BASE64}`,
+              DEMO_REFERENCE_BOTTLE_BASE64
+            );
+          },
+        },
+      ]
+    );
+  };
+
+
+  const handleMergeDuplicateStandard = async (primaryStd: ColorStandard, duplicateStd: ColorStandard) => {
+    Alert.alert(
+      'Merge Duplicate Bottles',
+      `Merge '${duplicateStd.name || duplicateStd.color_name}' into '${primaryStd.name || primaryStd.color_name}'? The calibration photos will be averaged together, and the duplicate card will be removed.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Merge & Average',
+          style: 'default',
+          onPress: async () => {
+            try {
+              setActionLoading(true);
+              const dupImg = duplicateStd.reference_image || duplicateStd.samples?.[0]?.image_base64;
+              if (dupImg) {
+                await addReferenceSampleToStandard(
+                  testId,
+                  primaryStd.id,
+                  dupImg,
+                  dupImg.startsWith('data:') ? dupImg.split(',')[1] : undefined,
+                  session.role
+                );
+              }
+              await deleteColorStandard(testId, duplicateStd.id, session.role);
+              await loadStandards();
+              Alert.alert(
+                'Duplicate Merged ✓',
+                `Both photo samples are now averaged under a single standard (${primaryStd.value} ${primaryStd.unit}).`
+              );
+            } catch (err: any) {
+              Alert.alert('Merge Error', err.message || 'Failed to merge duplicate standards.');
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
+
+
+
   const handlePublishTest = async () => {
     if (!test) return;
-    if (sortedStandards.length < 2) {
+    if (sortedStandards.length < 1) {
       Alert.alert(
         'Standards Required',
-        'Please add at least 2 calibrated reference standards before publishing the test.'
+        'Please add at least 1 calibrated reference standard before publishing the test.'
       );
       return;
     }
@@ -167,14 +295,23 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
             Version {test.version} • {isPublished ? 'Published' : 'Draft'}
           </Text>
         </View>
-        <View style={styles.statusBadge}>
-          <Text
-            style={[
-              styles.statusBadgeText,
-              isPublished ? styles.textPublished : styles.textDraft,
-            ]}>
-            {isPublished ? 'Published' : 'Draft'}
-          </Text>
+        <View style={styles.topRightActions}>
+          {onEditTest && (
+            <Pressable
+              style={styles.editTestNavBtn}
+              onPress={() => onEditTest(testId)}>
+              <Text style={styles.editTestNavBtnText}>✏️ Edit Test</Text>
+            </Pressable>
+          )}
+          <View style={styles.statusBadge}>
+            <Text
+              style={[
+                styles.statusBadgeText,
+                isPublished ? styles.textPublished : styles.textDraft,
+              ]}>
+              {isPublished ? 'Published' : 'Draft'}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -252,9 +389,28 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
           const lab = std.reference_color?.lab || { l: 0, a: 0, b: 0 };
           const quality = std.quality || { overall: 90, valid_pixel_percentage: 85 };
           const refImg = std.reference_image || std.samples?.[0]?.image_base64;
+          const sampleCount = std.sample_count || (std.samples ? std.samples.length : 1);
+
+          const duplicates = sortedStandards.filter((s) => Math.abs(s.value - std.value) < 1e-4);
+          const isDuplicate = duplicates.length > 1;
+          const isSecondaryDuplicate = isDuplicate && duplicates[0].id !== std.id;
 
           return (
-            <View key={std.id} style={styles.standardCard}>
+            <View key={std.id} style={[styles.standardCard, isSecondaryDuplicate && styles.duplicateStandardCard]}>
+              {/* Secondary Duplicate Warning Banner */}
+              {isSecondaryDuplicate && !isPublished && (
+                <View style={styles.duplicateWarningStrip}>
+                  <Text style={styles.duplicateWarningText}>
+                    ⚠️ Duplicate concentration ({std.value} {std.unit})
+                  </Text>
+                  <Pressable
+                    style={styles.mergeDuplicateBtn}
+                    onPress={() => handleMergeDuplicateStandard(duplicates[0], std)}>
+                    <Text style={styles.mergeDuplicateBtnText}>🔗 Merge into 1 Bottle</Text>
+                  </Pressable>
+                </View>
+              )}
+
               {/* Card Top: Swatch + Concentration + Quality */}
               <View style={styles.standardCardTop}>
                 {refImg ? (
@@ -271,6 +427,11 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
                     <Text style={styles.standardValueText}>
                       {std.value} {std.unit}
                     </Text>
+                    <View style={styles.sampleBadge}>
+                      <Text style={styles.sampleBadgeText}>
+                        {sampleCount > 1 ? `📸 ${sampleCount} Shots Averaged` : '📸 1 Shot'}
+                      </Text>
+                    </View>
                     <View style={styles.qualityPill}>
                       <Text style={styles.qualityPillText}>
                         {quality.overall.toFixed(0)}% valid
@@ -280,7 +441,8 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
 
                   <Text style={styles.standardNameText}>{std.name || std.color_name || 'Standard'}</Text>
                   <Text style={styles.metricSummaryText}>
-                    Calibrated Standard • {quality.overall.toFixed(0)}% Optical Clarity
+                    {sampleCount > 1 ? `Multi-Shot Profile (${sampleCount} photos) • ` : 'Calibrated Standard • '}
+                    {quality.overall.toFixed(0)}% Optical Clarity
                   </Text>
                 </View>
               </View>
@@ -292,6 +454,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
                 </Text>
               ) : null}
 
+
               {/* Action Buttons Row */}
               <View style={styles.cardActionsRow}>
                 <Pressable
@@ -299,6 +462,14 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
                   onPress={() => setSelectedStandardForDetails(std)}>
                   <Text style={styles.detailsBtnText}>View Analysis</Text>
                 </Pressable>
+
+                {!isPublished && (
+                  <Pressable
+                    style={styles.recalibrateBtn}
+                    onPress={() => handleAddSampleToStandard(std)}>
+                    <Text style={styles.recalibrateBtnText}>📸 Recalibrate Bottle</Text>
+                  </Pressable>
+                )}
 
                 {!isPublished && (
                   <View style={styles.cardRightActions}>
@@ -315,6 +486,7 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
         })}
 
 
+
       </ScrollView>
 
       {/* Sticky Bottom Actions */}
@@ -323,15 +495,15 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
           <Pressable
             style={[
               styles.publishActionBtn,
-              (sortedStandards.length < 2 || actionLoading) && styles.btnDisabled,
+              (sortedStandards.length < 1 || actionLoading) && styles.btnDisabled,
             ]}
-            disabled={sortedStandards.length < 2 || actionLoading}
+            disabled={sortedStandards.length < 1 || actionLoading}
             onPress={handlePublishTest}>
             {actionLoading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={styles.publishActionText}>
-                ✓ Publish Test Live ({sortedStandards.length} Standards)
+                ✓ Publish Test Live ({sortedStandards.length} {sortedStandards.length === 1 ? 'Standard' : 'Standards'})
               </Text>
             )}
           </Pressable>
@@ -462,6 +634,24 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: JalqTheme.colors.textMuted,
     letterSpacing: 0.5,
+  },
+  topRightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  editTestNavBtn: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: JalqTheme.radius.md,
+  },
+  editTestNavBtnText: {
+    color: '#0284C7',
+    fontSize: 11,
+    fontWeight: '700',
   },
   statusBadge: {
     paddingHorizontal: 8,
@@ -707,6 +897,33 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
   },
+  sampleBadge: {
+    backgroundColor: '#EEF2FF',
+    borderColor: '#C7D2FE',
+    borderWidth: 1,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 10,
+    marginLeft: 6,
+  },
+  sampleBadgeText: {
+    color: '#4338CA',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  recalibrateBtn: {
+    backgroundColor: '#EFF6FF',
+    borderColor: '#BFDBFE',
+    borderWidth: 1,
+    paddingHorizontal: 9,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  recalibrateBtnText: {
+    color: '#1D4ED8',
+    fontSize: 11,
+    fontWeight: '700',
+  },
   deleteCardBtn: {
     backgroundColor: JalqTheme.colors.badgeErrorBg,
     borderColor: JalqTheme.colors.badgeErrorBorder,
@@ -720,6 +937,41 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
   },
+  duplicateStandardCard: {
+    borderColor: '#F59E0B',
+    borderWidth: 1.5,
+    backgroundColor: '#FFFBEB',
+  },
+  duplicateWarningStrip: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FEF3C7',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  duplicateWarningText: {
+    color: '#92400E',
+    fontSize: 11,
+    fontWeight: '700',
+    flex: 1,
+  },
+  mergeDuplicateBtn: {
+    backgroundColor: '#D97706',
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  mergeDuplicateBtnText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+
+
   bottomControlBox: {
     marginTop: 10,
     marginBottom: 24,

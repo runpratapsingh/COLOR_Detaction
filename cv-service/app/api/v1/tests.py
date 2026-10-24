@@ -17,9 +17,11 @@ from app.schemas.test import (
     ColorStandardCreateSchema,
     ColorStandardSchema,
     ColorStandardUpdateSchema,
+    StandardAddSampleJsonSchema,
 )
 from app.services.analysis_service import AnalysisService
 from app.services.color_converter import ColorConverter
+from app.services.delta_e import DeltaEService
 from app.services.in_memory_store import (
     ColorStandardItem,
     StandardSampleItem,
@@ -27,6 +29,51 @@ from app.services.in_memory_store import (
 )
 
 router = APIRouter(prefix="/tests", tags=["Chemical Tests & Standards"])
+
+
+def check_duplicate_bottle_color(
+    test_id: str,
+    sample_lab: tuple[float, float, float],
+    current_std_id: Optional[str] = None,
+) -> Optional[dict]:
+    """Compares sample Lab against all existing standards for test_id.
+
+    Returns duplicate info if Delta E <= 3.5 (perceptual threshold for identical bottle color).
+    """
+    test = in_memory_store.get_test(test_id)
+    if not test or not test.standards:
+        return None
+
+    min_de = 999.0
+    matched_std = None
+
+    for std in test.standards:
+        if current_std_id and (std.id == current_std_id or std.standard_id == current_std_id):
+            continue
+        std_lab = (float(std.lab_l), float(std.lab_a), float(std.lab_b))
+        de = DeltaEService.delta_e_2000(sample_lab, std_lab)
+        if de < min_de:
+            min_de = de
+            matched_std = std
+
+    if matched_std and min_de <= 3.5:
+        match_pct = max(0.0, round((1.0 - min(25.0, min_de) / 25.0) * 100.0, 1))
+        return {
+            "is_duplicate_color": True,
+            "matched_standard_id": matched_std.id,
+            "matched_standard_name": matched_std.name or matched_std.color_name,
+            "matched_concentration": matched_std.value,
+            "unit": matched_std.unit,
+            "delta_e": round(min_de, 2),
+            "similarity_percentage": match_pct,
+            "message": (
+                f"Duplicate bottle color detected! This liquid color matches registered standard "
+                f"'{matched_std.name or matched_std.color_name}' ({matched_std.value:g} {matched_std.unit}) "
+                f"with ΔE = {min_de:.2f} ({match_pct:.0f}% match)."
+            ),
+        }
+    return None
+
 
 
 def check_manager_role(role: Optional[str] = None):
@@ -265,6 +312,17 @@ async def analyze_reference_sample(
         bottle_guide=bottle_guide,
         custom_liquid_roi=custom_liquid_roi,
     )
+
+    if result.get("is_valid") and result.get("detected_color") and "lab" in result["detected_color"]:
+        det_lab = result["detected_color"]["lab"]
+        sample_lab = (float(det_lab.get("l", 0)), float(det_lab.get("a", 0)), float(det_lab.get("b", 0)))
+        dup_info = check_duplicate_bottle_color(test_id, sample_lab)
+        result["duplicate_color_check"] = dup_info
+        if dup_info and dup_info.get("is_duplicate_color"):
+            if "warnings" not in result or result["warnings"] is None:
+                result["warnings"] = []
+            result["warnings"].append(dup_info["message"])
+
     return result
 
 
@@ -304,7 +362,19 @@ async def analyze_reference_sample_json(
         bottle_guide=bottle_guide,
         custom_liquid_roi=custom_liquid_roi,
     )
+
+    if result.get("is_valid") and result.get("detected_color") and "lab" in result["detected_color"]:
+        det_lab = result["detected_color"]["lab"]
+        sample_lab = (float(det_lab.get("l", 0)), float(det_lab.get("a", 0)), float(det_lab.get("b", 0)))
+        dup_info = check_duplicate_bottle_color(test_id, sample_lab)
+        result["duplicate_color_check"] = dup_info
+        if dup_info and dup_info.get("is_duplicate_color"):
+            if "warnings" not in result or result["warnings"] is None:
+                result["warnings"] = []
+            result["warnings"].append(dup_info["message"])
+
     return result
+
 
 
 @router.post("/{test_id}/standards", response_model=ColorStandardSchema)
@@ -348,8 +418,22 @@ def create_color_standard(
     lab_a = float(ref_color.lab.get("a", 0.0))
     lab_b = float(ref_color.lab.get("b", 0.0))
 
+    # Reject duplicate bottle color
+    dup_info = check_duplicate_bottle_color(test_id, (lab_l, lab_a, lab_b))
+    if dup_info and dup_info.get("is_duplicate_color"):
+        matched_conc = dup_info["matched_concentration"]
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=(
+                f"Duplicate bottle color rejected: This photo color is a {dup_info['similarity_percentage']}% match "
+                f"(ΔE = {dup_info['delta_e']}) to registered standard '{dup_info['matched_standard_name']}' "
+                f"({matched_conc:g} {clean_unit}). Each chemical standard bottle must have a distinct color."
+            ),
+        )
+
     q_overall = standard_in.quality.overall if standard_in.quality else 90.0
     q_valid_pix = standard_in.quality.valid_pixel_percentage if standard_in.quality else 85.0
+
 
     # Extract background white point if provided (for Bradford CAT at match time)
     bg_white_dict = ref_color.bg_white or {}
@@ -552,6 +636,84 @@ async def add_reference_sample_to_standard(
 
     std.add_reference_sample(sample)
     return std.to_dict()
+
+
+@router.post("/{test_id}/standards/{standard_id}/samples-json", response_model=ColorStandardSchema)
+async def add_reference_sample_json_to_standard(
+    test_id: str,
+    standard_id: str,
+    payload: StandardAddSampleJsonSchema,
+    x_user_role: Optional[str] = Header(None, alias="X-User-Role"),
+    db: Session = Depends(get_db),
+):
+    """Analyzes and aggregates an additional reference photograph (base64 JSON) into an existing standard.
+
+    Recalculates the representative median CIELAB and RGB color across all samples.
+    """
+    check_manager_role(x_user_role)
+    test = in_memory_store.get_test(test_id)
+    if not test:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Chemical test '{test_id}' not found.",
+        )
+    std = in_memory_store.get_standard(test_id, standard_id)
+    if not std:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Standard '{standard_id}' not found.",
+        )
+
+    raw_b64 = payload.image_base64
+    if "," in raw_b64:
+        raw_b64 = raw_b64.split(",", 1)[1]
+    try:
+        content = base64.b64decode(raw_b64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 image data: {str(exc)}")
+
+    bottle_guide = tuple(payload.bottle_guide) if payload.bottle_guide and len(payload.bottle_guide) == 4 else None
+    custom_liquid_roi = tuple(payload.liquid_roi) if payload.liquid_roi and len(payload.liquid_roi) == 4 else None
+
+    analyzer = AnalysisService(db=db)
+    res = analyzer.analyze_reference_sample(
+        image_bytes=content,
+        white_balance_method=payload.white_balance_method or "REFERENCE_PATCH",
+        bottle_guide=bottle_guide,
+        custom_liquid_roi=custom_liquid_roi,
+    )
+
+    if not res.get("is_valid", False):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Reference sample rejected: {', '.join(res.get('problems', []))}",
+        )
+
+    det_col = res["detected_color"]
+    det_bw = det_col.get("bg_white") or {}
+    sample = StandardSampleItem(
+        id=str(uuid.uuid4()),
+        image_base64=res.get("reference_image", ""),
+        rgb_r=det_col["rgb"]["r"],
+        rgb_g=det_col["rgb"]["g"],
+        rgb_b=det_col["rgb"]["b"],
+        hex_code=det_col["hex"],
+        hsv_h=det_col["hsv"]["h"],
+        hsv_s=det_col["hsv"]["s"],
+        hsv_v=det_col["hsv"]["v"],
+        lab_l=det_col["lab"]["l"],
+        lab_a=det_col["lab"]["a"],
+        lab_b=det_col["lab"]["b"],
+        quality_overall=res["quality"]["overall"],
+        valid_pixel_percentage=res["quality"]["valid_pixel_percentage"],
+        bg_white_r=int(det_bw.get("r", 200)),
+        bg_white_g=int(det_bw.get("g", 200)),
+        bg_white_b=int(det_bw.get("b", 200)),
+    )
+
+    std.add_reference_sample(sample)
+    return std.to_dict()
+
 
 
 # ---------------------------------------------------------------------------

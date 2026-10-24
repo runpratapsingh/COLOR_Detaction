@@ -185,8 +185,17 @@ class ReferenceMatcher:
         best = entries[0]
         best_de = best["delta_e_00"]
 
-        if len(entries) > 1:
-            second_best_de = entries[1]["delta_e_00"]
+        # Ambiguity check: Compare best match against the closest standard that has
+        # a DIFFERENT concentration value. If two standards have the same concentration
+        # (e.g. multiple shade variants under different lighting), they represent the
+        # same concentration tier and should never create an ambiguous conflict.
+        diff_conc_entries = [
+            e for e in entries
+            if abs(e["concentration"] - best["concentration"]) > 1e-4
+        ]
+        if diff_conc_entries:
+            diff_conc_entries.sort(key=lambda x: x["delta_e_00"])
+            second_best_de = diff_conc_entries[0]["delta_e_00"]
             separation = round(second_best_de - best_de, 2)
         else:
             second_best_de = best_de + 10.0
@@ -201,22 +210,30 @@ class ReferenceMatcher:
             match_quality = "STRONG"
         elif best_de <= 9.0:
             match_quality = "GOOD"
-        elif best_de <= 15.0:
+        elif best_de <= 16.0:
             match_quality = "FAIR"
         else:
             match_quality = "POOR"
 
-        # Sort standards by concentration to form an ordered calibration ladder
-        by_conc = sorted(entries, key=lambda x: x["concentration"])
+        # Collapse multiple standards of the same concentration to the best matching representative
+        # to form an ordered, strictly unique calibration ladder.
+        conc_map = {}
+        for item in entries:
+            c = round(item["concentration"], 4)
+            if c not in conc_map or item["delta_e_00"] < conc_map[c]["delta_e_00"]:
+                conc_map[c] = item
+        by_conc = sorted(conc_map.values(), key=lambda x: x["concentration"])
+
         min_std = by_conc[0]
         max_std = by_conc[-1]
         min_conc = min_std["concentration"]
         max_conc = max_std["concentration"]
+        has_range = len(by_conc) > 1 and (max_conc > min_conc)
 
-        # Locate best matching standard in the ordered ladder
+        # Locate best matching concentration tier in the ladder
         best_idx = 0
         for i, item in enumerate(by_conc):
-            if item["id"] == best["id"]:
+            if abs(item["concentration"] - best["concentration"]) < 1e-4:
                 best_idx = i
                 break
 
@@ -230,10 +247,10 @@ class ReferenceMatcher:
         if is_out_of_range:
             range_status = "OUT_OF_RANGE"
             range_label = f"Reaction color differs significantly from all standards (ΔE {best_de:.1f} > {self.max_acceptable_delta:.0f})"
-        elif best_idx == len(by_conc) - 1 and best_de > 6.0:
+        elif has_range and best_idx == len(by_conc) - 1 and best_de > 6.0:
             range_status = "ABOVE_CALIBRATED_RANGE"
             range_label = f"Above calibrated range (> {max_conc:g} {best['unit']})"
-        elif best_idx == 0 and best_de > 6.0:
+        elif has_range and best_idx == 0 and best_de > 6.0:
             range_status = "BELOW_CALIBRATED_RANGE"
             range_label = f"Below calibrated range (< {min_conc:g} {best['unit']})"
 
@@ -245,7 +262,7 @@ class ReferenceMatcher:
             interpolated_concentration = max_conc
         elif range_status == "BELOW_CALIBRATED_RANGE":
             interpolated_concentration = min_conc
-        elif best_de <= 0.6 or len(by_conc) < 2:
+        elif best_de <= 0.6 or not has_range:
             interpolated_concentration = best["concentration"]
         else:
             if left_std and right_std:

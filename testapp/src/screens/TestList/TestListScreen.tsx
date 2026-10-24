@@ -17,6 +17,7 @@ import { fetchChemicalTests } from '../../services/jalqApi';
 interface TestListScreenProps {
   session: UserSession;
   onSelectTest: (testId: string) => void;
+  onViewHistory?: () => void;
   onLogout: () => void;
 }
 
@@ -32,6 +33,7 @@ const CARD_ACCENTS = [
 export const TestListScreen: React.FC<TestListScreenProps> = ({
   session,
   onSelectTest,
+  onViewHistory,
   onLogout,
 }) => {
   const [tests, setTests] = useState<ChemicalTestSummary[]>([]);
@@ -113,9 +115,16 @@ export const TestListScreen: React.FC<TestListScreenProps> = ({
             <Text style={styles.facilityText}>{session.facility}</Text>
           </View>
         </View>
-        <Pressable style={styles.logoutBtn} onPress={onLogout}>
-          <Text style={styles.logoutText}>Sign Out</Text>
-        </Pressable>
+        <View style={styles.topActionsRow}>
+          {onViewHistory && (
+            <Pressable style={styles.historyBtn} onPress={onViewHistory}>
+              <Text style={styles.historyBtnText}>📋 Test History</Text>
+            </Pressable>
+          )}
+          <Pressable style={styles.logoutBtn} onPress={onLogout}>
+            <Text style={styles.logoutText}>Sign Out</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* ── Section Header ──────────────────────────────────── */}
@@ -181,6 +190,24 @@ const styles = StyleSheet.create({
   avatarText: { fontSize: 13, fontWeight: '800', color: JalqTheme.colors.primary },
   techName: { fontSize: 14, fontWeight: '700', color: JalqTheme.colors.textPrimary },
   facilityText: { fontSize: 11, color: JalqTheme.colors.textSecondary, marginTop: 1 },
+  topActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  historyBtn: {
+    backgroundColor: '#F0F9FF',
+    borderColor: '#BAE6FD',
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: JalqTheme.radius.md,
+  },
+  historyBtnText: {
+    color: '#0284C7',
+    fontSize: 12,
+    fontWeight: '700',
+  },
   logoutBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,

@@ -606,7 +606,48 @@ class InMemoryStore:
             std.description = updates["description"]
         if "tolerance_delta_e" in updates and updates["tolerance_delta_e"] is not None:
             std.tolerance_delta_e = float(updates["tolerance_delta_e"])
+        if "reference_color" in updates and updates["reference_color"] is not None:
+            rc = updates["reference_color"]
+            if isinstance(rc, dict):
+                std.hex_code = rc.get("hex", std.hex_code)
+                if "rgb" in rc and isinstance(rc["rgb"], dict):
+                    std.rgb_r = int(rc["rgb"].get("r", std.rgb_r))
+                    std.rgb_g = int(rc["rgb"].get("g", std.rgb_g))
+                    std.rgb_b = int(rc["rgb"].get("b", std.rgb_b))
+                if "lab" in rc and isinstance(rc["lab"], dict):
+                    std.lab_l = float(rc["lab"].get("l", std.lab_l))
+                    std.lab_a = float(rc["lab"].get("a", std.lab_a))
+                    std.lab_b = float(rc["lab"].get("b", std.lab_b))
+                if "hsv" in rc and isinstance(rc["hsv"], dict):
+                    std.hsv_h = float(rc["hsv"].get("h", std.hsv_h))
+                    std.hsv_s = float(rc["hsv"].get("s", std.hsv_s))
+                    std.hsv_v = float(rc["hsv"].get("v", std.hsv_v))
+        if "reference_image" in updates and updates["reference_image"]:
+            std.reference_image = updates["reference_image"]
+        if "reset_samples" in updates and updates["reset_samples"]:
+            sample_item = StandardSampleItem(
+                id=str(uuid.uuid4()),
+                image_base64=std.reference_image or "",
+                rgb_r=std.rgb_r,
+                rgb_g=std.rgb_g,
+                rgb_b=std.rgb_b,
+                hex_code=std.hex_code,
+                hsv_h=std.hsv_h,
+                hsv_s=std.hsv_s,
+                hsv_v=std.hsv_v,
+                lab_l=std.lab_l,
+                lab_a=std.lab_a,
+                lab_b=std.lab_b,
+                quality_overall=std.quality_overall,
+                valid_pixel_percentage=std.valid_pixel_percentage,
+                bg_white_r=std.bg_white_r,
+                bg_white_g=std.bg_white_g,
+                bg_white_b=std.bg_white_b,
+            )
+            std.samples = [sample_item]
+            std.sample_count = 1
         return std
+
 
     def delete_standard(self, test_id: str, standard_id: str) -> bool:
         test = self.get_test(test_id)

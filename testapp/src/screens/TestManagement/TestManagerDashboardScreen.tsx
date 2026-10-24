@@ -143,7 +143,7 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
           </Text>
         </View>
 
-        {/* Main Action Buttons: When Draft, allow Managing Standards & Publishing Live; When Published, allow Viewing Standards */}
+        {/* Main Action Buttons: When Draft, allow Managing Standards, Editing & Publishing Live; When Published, allow Viewing Standards & Editing */}
         {isPublished ? (
           <View style={styles.actionRow}>
             <Pressable
@@ -153,6 +153,14 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
                 👁 View Added Standards ({item.standards_count})
               </Text>
             </Pressable>
+
+            {onEditTest && (
+              <Pressable
+                style={styles.editBtn}
+                onPress={() => onEditTest(item.test_id)}>
+                <Text style={styles.editBtnText}>✏️ Edit Test</Text>
+              </Pressable>
+            )}
           </View>
         ) : (
           <View style={styles.actionRow}>
@@ -160,9 +168,17 @@ export const TestManagerDashboardScreen: React.FC<TestManagerDashboardScreenProp
               style={styles.standardsBtn}
               onPress={() => onManageStandards(item.test_id)}>
               <Text style={styles.standardsBtnText}>
-                Manage Standards ({item.standards_count})
+                Standards ({item.standards_count})
               </Text>
             </Pressable>
+
+            {onEditTest && (
+              <Pressable
+                style={styles.editBtn}
+                onPress={() => onEditTest(item.test_id)}>
+                <Text style={styles.editBtnText}>✏️ Edit</Text>
+              </Pressable>
+            )}
 
             <Pressable
               style={[styles.publishCardBtn, actionLoadingId === item.test_id && styles.btnDisabled]}

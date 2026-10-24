@@ -31,7 +31,7 @@ export const RootNavigator: React.FC = () => {
         animation: 'slide_from_right',
         contentStyle: { backgroundColor: JalqTheme.colors.bgDark },
       }}>
-      {/* 0. Dynamic Server Configuration (First Screen) */}
+      {/* 0. Dynamic Server Configuration */}
       <Stack.Screen name="ServerConfig">
         {({ navigation }) => (
           <ServerConfigScreen
@@ -103,9 +103,13 @@ export const RootNavigator: React.FC = () => {
               session={session}
               testId={route.params?.testId}
               onBack={() => navigation.goBack()}
-              onSaved={(testId) =>
-                navigation.replace('StandardManagement', { testId })
-              }
+              onSaved={(testId) => {
+                if (route.params?.testId) {
+                  navigation.goBack();
+                } else {
+                  navigation.replace('StandardManagement', { testId });
+                }
+              }}
             />
           ) : null
         }
@@ -123,6 +127,9 @@ export const RootNavigator: React.FC = () => {
               }
               onTestNow={(testId) =>
                 navigation.navigate('TestDetails', { testId })
+              }
+              onEditTest={(testId) =>
+                navigation.navigate('CreateEditTest', { testId })
               }
             />
           ) : null
@@ -151,6 +158,7 @@ export const RootNavigator: React.FC = () => {
               onSelectTest={(testId) =>
                 navigation.navigate('TestDetails', { testId })
               }
+              onViewHistory={() => navigation.navigate('TestHistory')}
               onLogout={() => {
                 logout();
                 navigation.reset({
@@ -217,6 +225,7 @@ export const RootNavigator: React.FC = () => {
             result={route.params.result}
             capturedUri={route.params.capturedUri}
             onRetake={() => navigation.goBack()}
+            onViewHistory={() => navigation.navigate('TestHistory')}
             onNewTest={() => {
               if (
                 session?.role === 'TEST_MANAGER' ||

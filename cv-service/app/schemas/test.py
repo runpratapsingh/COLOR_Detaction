@@ -75,6 +75,13 @@ class ColorStandardCreateSchema(BaseModel):
     tolerance_delta_e: Optional[float] = 3.0
 
 
+class StandardAddSampleJsonSchema(BaseModel):
+    image_base64: str
+    white_balance_method: Optional[str] = "REFERENCE_PATCH"
+    bottle_guide: Optional[Dict[str, float]] = None
+    liquid_roi: Optional[Dict[str, float]] = None
+
+
 class ColorStandardUpdateSchema(BaseModel):
     value: Optional[float] = None
     unit: Optional[str] = None
@@ -82,6 +89,11 @@ class ColorStandardUpdateSchema(BaseModel):
     color_name: Optional[str] = None
     description: Optional[str] = None
     tolerance_delta_e: Optional[float] = None
+    reference_color: Optional[ReferenceColorSchema] = None
+    quality: Optional[StandardQualitySchema] = None
+    reference_image: Optional[str] = None
+    reset_samples: Optional[bool] = None
+
 
 
 class ChemicalTestSummarySchema(BaseModel):
