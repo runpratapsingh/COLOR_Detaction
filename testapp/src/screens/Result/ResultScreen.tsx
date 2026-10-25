@@ -38,17 +38,26 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
   const rangeStatus = classification?.range_status || 'IN_RANGE';
   const rangeLabel = classification?.range_label;
 
+  const rawMatchPct =
+    classification?.match_percentage ??
+    result.detected_color?.match_percentage ??
+    Math.round(100 - deltaE * 4);
+  const matchAccuracy = Math.max(0, Math.min(100, Math.round(rawMatchPct)));
+
   const isColorUnmatched =
     result.status === 'NO_MATCH_FOUND' ||
     result.status === 'CALIBRATION_REQUIRED' ||
     classification?.range_status === 'OUT_OF_RANGE' ||
-    (classification?.match_quality === 'POOR' && (classification?.match_percentage ?? 100) < 50);
+    classification?.range_status === 'ABOVE_CALIBRATED_RANGE' ||
+    classification?.range_status === 'BELOW_CALIBRATED_RANGE' ||
+    matchAccuracy < 85;
 
-  const isRetake =
+  const isCaptureError =
     result.status === 'RETAKE_IMAGE' ||
     result.status === 'INVALID_INCUBATION_TIME' ||
-    result.status === 'ERROR' ||
-    isColorUnmatched;
+    result.status === 'ERROR';
+
+  const isRetake = isCaptureError || isColorUnmatched;
   const isAmbiguous = result.status === 'AMBIGUOUS_RESULT';
 
   // Show the matched label (e.g. "NITRO 4 mg/L")
@@ -127,7 +136,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             <Text style={styles.statusSub}>
               {isRetake
                 ? (isColorUnmatched
-                    ? 'Sample color did not match any calibrated standard within required tolerance.'
+                    ? `Sample color match (${matchAccuracy}%) did not reach the required tolerance (≥ 85%).`
                     : 'The photo could not be reliably measured. Please review suggestions below.')
                 : 'Liquid spectrum successfully matched against calibrated standards.'}
             </Text>
@@ -152,7 +161,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             </Text>
             <Text style={styles.rejectionMessage}>
               {isColorUnmatched
-                ? 'The detected liquid color does not match any calibrated test standard within required tolerance (< 85%). Please ensure neutral lighting, use a plain white background, and verify incubation before retaking, or complete the test to record this result.'
+                ? `The detected liquid color match accuracy is ${matchAccuracy}%, which does not reach the required tolerance (≥ 85%). Please ensure neutral lighting, use a plain white background, and verify incubation before retaking, or complete the test to record this result.`
                 : (result.rejection_message ||
                   'To make sure your result is accurate, please retake the photo with the suggestions below:')}
             </Text>
@@ -177,35 +186,59 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           </View>
         )}
 
-        {/* SUCCESS RESULT PRESENTATION */}
-        {!isRetake && (
+        {/* RESULT & COMPARISON PRESENTATION */}
+        {(!isCaptureError || isColorUnmatched) && (
           <>
             {/* Primary Winner Match Card */}
             <View style={styles.winnerCard}>
               <View style={styles.winnerHeader}>
-                <Text style={styles.winnerTag}>MEASURED RESULT</Text>
-                <View style={[styles.matchQualityPill, styles.pillStrong]}>
-                  <Text style={[styles.matchQualityText, styles.textStrong]}>
-                    Matched
+                <Text style={styles.winnerTag}>
+                  {isColorUnmatched ? 'CLOSEST MEASURED RESULT' : 'MEASURED RESULT'}
+                </Text>
+                <View
+                  style={[
+                    styles.matchQualityPill,
+                    isColorUnmatched ? styles.pillAmbiguous : styles.pillStrong,
+                  ]}>
+                  <Text
+                    style={[
+                      styles.matchQualityText,
+                      isColorUnmatched ? styles.textAmbiguous : styles.textStrong,
+                    ]}>
+                    {isColorUnmatched ? 'Unmatched (< 85%)' : 'Matched'}
                   </Text>
                 </View>
               </View>
 
               {/* Main Reading: Matched Label Only (e.g. "NITRO 4 mg/L") */}
               <View style={styles.matchedResultBox}>
-                <Text style={styles.matchedResultLabel}>MATCHED STANDARD</Text>
+                <Text style={styles.matchedResultLabel}>
+                  {isColorUnmatched ? 'CLOSEST STANDARD' : 'MATCHED STANDARD'}
+                </Text>
                 <Text style={styles.matchedResultValue}>
                   {matchedLabel}
                 </Text>
-                <Text style={styles.matchedSubtitle}>✓ Verified Standard Match</Text>
+                <Text
+                  style={[
+                    styles.matchedSubtitle,
+                    isColorUnmatched && styles.unmatchedSubtitle,
+                  ]}>
+                  {isColorUnmatched
+                    ? `⚠️ ${matchAccuracy}% Match (Below 85% Tolerance)`
+                    : '✓ Verified Standard Match'}
+                </Text>
               </View>
 
               {/* Key Metrics Row */}
               <View style={styles.metricRow}>
                 <View style={styles.metricBox}>
                   <Text style={styles.metricLabel}>Match Accuracy</Text>
-                  <Text style={styles.metricVal}>
-                    {Math.max(70, Math.min(99, Math.round(100 - deltaE * 4)))}%
+                  <Text
+                    style={[
+                      styles.metricVal,
+                      isColorUnmatched && { color: JalqTheme.colors.amber },
+                    ]}>
+                    {matchAccuracy}%
                   </Text>
                   <Text style={styles.metricHint}>Color match</Text>
                 </View>
@@ -527,6 +560,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: JalqTheme.colors.emerald,
     marginTop: 6,
+  },
+  unmatchedSubtitle: {
+    color: JalqTheme.colors.amber,
   },
   metricRow: {
     flexDirection: 'row',

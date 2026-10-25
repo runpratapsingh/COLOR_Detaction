@@ -3,7 +3,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChemicalTestDetail, JalqAnalysisResponse } from '../types/jalq';
 
 export type RootStackParamList = {
-  ServerConfig: undefined;
   Login: undefined;
   TestManagerDashboard: undefined;
   CreateEditTest: { testId?: string } | undefined;

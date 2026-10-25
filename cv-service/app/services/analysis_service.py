@@ -695,8 +695,9 @@ class AnalysisService:
             if self.db:
                 try:
                     test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
+                    real_chemical_test_id = self._resolve_chemical_test_id(chemical_test, effective_code)
                     ResultRepository(self.db).save_result(
-                        chemical_test_id=chemical_test.id if hasattr(chemical_test, "id") else None,
+                        chemical_test_id=real_chemical_test_id,
                         test_id=effective_code,
                         test_version=test_ver,
                         status=status,
@@ -710,7 +711,7 @@ class AnalysisService:
                         device_model=device_model,
                     )
                 except Exception as e:
-                    logger.error(f"Failed to persist rejection result to DB: {e}")
+                    logger.error(f"Failed to persist rejection result to DB: {e}", exc_info=True)
 
             if debug:
                 response["debug_artifacts"] = self._create_debug_artifacts(
@@ -889,8 +890,9 @@ class AnalysisService:
                 test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
                 matched_std_id = matched_standard.get("id") if matched_standard else None
                 matched_std_val = matched_standard.get("concentration") if matched_standard else None
+                real_chemical_test_id = self._resolve_chemical_test_id(chemical_test, effective_code)
                 ResultRepository(self.db).save_result(
-                    chemical_test_id=chemical_test.id if hasattr(chemical_test, "id") else None,
+                    chemical_test_id=real_chemical_test_id,
                     test_id=effective_code,
                     test_version=test_ver,
                     status=status,
@@ -909,7 +911,7 @@ class AnalysisService:
                     device_model=device_model,
                 )
             except Exception as e:
-                logger.error(f"Failed to persist analysis result to DB: {e}")
+                logger.error(f"Failed to persist analysis result to DB: {e}", exc_info=True)
 
         # 11. Debug Visualizations & Artifact Generation
         if debug:
@@ -918,6 +920,21 @@ class AnalysisService:
             )
 
         return response
+
+    def _resolve_chemical_test_id(self, chemical_test, effective_code: str | None = None) -> str | None:
+        """Resolves the database UUID for chemical_test_id if present in chemical_tests table, else None."""
+        if not self.db:
+            return None
+        if isinstance(chemical_test, ChemicalTest) and hasattr(chemical_test, "id"):
+            return chemical_test.id
+        cand_id = getattr(chemical_test, "id", None) or getattr(chemical_test, "test_id", None) or effective_code
+        if cand_id:
+            db_row = self.db.query(ChemicalTest).filter(
+                (ChemicalTest.id == cand_id) | (ChemicalTest.code == cand_id)
+            ).first()
+            if db_row:
+                return db_row.id
+        return None
 
     def _generate_rejection_explanation(self, rejection_reasons: list[str]) -> dict:
         explanation_map = {

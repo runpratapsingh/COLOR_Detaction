@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.models.base import get_db
 from app.repositories.result_repository import ResultRepository
+from app.services.in_memory_store import in_memory_store
 
 router = APIRouter(tags=["History"])
 
@@ -63,7 +64,8 @@ def get_test_history(
         if r.chemical_test and hasattr(r.chemical_test, "name"):
             test_name = r.chemical_test.name
         elif r.test_id:
-            test_name = r.test_id
+            test_obj = in_memory_store.get_test(r.test_id)
+            test_name = test_obj.name if test_obj and hasattr(test_obj, "name") else r.test_id
 
         out.append(
             HistoryItemResponse(

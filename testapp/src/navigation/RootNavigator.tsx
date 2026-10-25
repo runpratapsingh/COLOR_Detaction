@@ -5,7 +5,6 @@ import { RootStackParamList } from './types';
 import { JalqTheme } from '../theme/colors';
 
 // Screens
-import { ServerConfigScreen } from '../screens/ServerConfig/ServerConfigScreen';
 import { LoginScreen } from '../screens/Login/LoginScreen';
 import { TestManagerDashboardScreen } from '../screens/TestManagement/TestManagerDashboardScreen';
 import { CreateEditTestScreen } from '../screens/TestManagement/CreateEditTestScreen';
@@ -25,26 +24,17 @@ export const RootNavigator: React.FC = () => {
 
   return (
     <Stack.Navigator
-      initialRouteName="ServerConfig"
+      initialRouteName="Login"
       screenOptions={{
         headerShown: false,
         animation: 'slide_from_right',
         contentStyle: { backgroundColor: JalqTheme.colors.bgDark },
       }}>
-      {/* 0. Dynamic Server Configuration */}
-      <Stack.Screen name="ServerConfig">
-        {({ navigation }) => (
-          <ServerConfigScreen
-            onContinue={() => navigation.navigate('Login')}
-          />
-        )}
-      </Stack.Screen>
 
       {/* 1. Authentication */}
       <Stack.Screen name="Login">
         {({ navigation }) => (
           <LoginScreen
-            onChangeServer={() => navigation.navigate('ServerConfig')}
             onLoginSuccess={(userSession) => {
               setSession(userSession);
               if (

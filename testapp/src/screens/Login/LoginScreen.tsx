@@ -51,7 +51,6 @@ const PRESET_ACCOUNTS: PresetAccount[] = [
 
 export const LoginScreen: React.FC<LoginScreenProps> = ({
   onLoginSuccess,
-  onChangeServer,
 }) => {
   const [username, setUsername] = useState('engineer');
   const [password, setPassword] = useState('tester123');
@@ -122,11 +121,6 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
             <Text style={styles.serverPillUrl} numberOfLines={1}>
               {getApiBaseUrl().replace(/\/api\/v1\/?$/, '')}
             </Text>
-            {onChangeServer && (
-              <Pressable onPress={onChangeServer}>
-                <Text style={styles.serverPillAction}>Change ⚙️</Text>
-              </Pressable>
-            )}
           </View>
 
           {/* ── Login Card ─────────────────────────────────────────── */}
