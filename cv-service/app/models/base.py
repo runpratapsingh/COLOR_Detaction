@@ -29,8 +29,20 @@ def normalize_db_url(url: str) -> str:
 
 def get_engine(db_url: str | None = None):
     url = normalize_db_url(db_url or settings.DATABASE_URL)
-    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {}
-    return create_engine(url, connect_args=connect_args, echo=False)
+    connect_args = {"check_same_thread": False} if url.startswith("sqlite") else {"connect_timeout": 10}
+    if "tidbcloud.com" in url or "ssl" in url.lower():
+        import ssl
+        ctx = ssl.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = ssl.CERT_NONE
+        connect_args["ssl"] = ctx
+    return create_engine(
+        url,
+        connect_args=connect_args,
+        pool_pre_ping=True,
+        pool_recycle=300,
+        echo=False,
+    )
 
 
 engine = get_engine()

@@ -5,8 +5,12 @@ from app.api.v1 import api_v1_router
 from app.core.config import settings
 from app.models.base import Base, engine
 
-# Create database tables automatically for development/SQLite
-Base.metadata.create_all(bind=engine)
+# Create database tables automatically for development/SQLite without blocking startup
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    import logging
+    logging.getLogger(__name__).warning(f"Initial DB schema check skipped: {e}")
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
