@@ -8,8 +8,8 @@ import {
   UserRole,
 } from '../types/jalq';
 
-// Local network endpoint for FastAPI CV Service
-export let JALQ_API_BASE = 'http://10.195.154.74:8000/api/v1';
+// Production AWS EC2 endpoint for FastAPI CV Service
+export let JALQ_API_BASE = 'http://100.59.196.14:8000/api/v1';
 export let CURRENT_USER_ROLE: UserRole = 'TEST_MANAGER';
 
 export function getApiBaseUrl(): string {

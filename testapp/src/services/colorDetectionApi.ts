@@ -1,8 +1,8 @@
 import { AnalysisResponse, AnalyzeParams } from '../types/colorDetection';
 import { JALQ_API_BASE } from './jalqApi';
 
-// Local network endpoint for FastAPI CV Service
-export const DEFAULT_API_URL = 'http://10.195.154.74:8000/api/v1';
+// Production AWS EC2 endpoint for FastAPI CV Service
+export const DEFAULT_API_URL = 'http://100.59.196.14:8000/api/v1';
 
 export async function analyzeBottleImage(
   params: AnalyzeParams,

@@ -50,7 +50,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     classification?.range_status === 'OUT_OF_RANGE' ||
     classification?.range_status === 'ABOVE_CALIBRATED_RANGE' ||
     classification?.range_status === 'BELOW_CALIBRATED_RANGE' ||
-    matchAccuracy < 85;
+    matchAccuracy < 70;
 
   const isCaptureError =
     result.status === 'RETAKE_IMAGE' ||
@@ -77,6 +77,11 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
     (detectedColor?.rgb
       ? `#${detectedColor.rgb.r.toString(16).padStart(2, '0')}${detectedColor.rgb.g.toString(16).padStart(2, '0')}${detectedColor.rgb.b.toString(16).padStart(2, '0')}`.toUpperCase()
       : '#0284C7');
+
+  const matchedStandardHex =
+    matchedStandard?.hex ||
+    test.standards.find((s) => s.id === matchedStandard?.id)?.reference_color.hex ||
+    detectedHex;
 
   const quality = result.quality || {
     overall: 85,
@@ -110,9 +115,11 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               <Text style={styles.headerHistoryText}>📋 History</Text>
             </Pressable>
           )}
-          <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
-            <Text style={styles.headerDoneText}>Done</Text>
-          </Pressable>
+          {!isRetake && (
+            <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
+              <Text style={styles.headerDoneText}>Done</Text>
+            </Pressable>
+          )}
         </View>
       </View>
 
@@ -136,22 +143,24 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             <Text style={styles.statusSub}>
               {isRetake
                 ? (isColorUnmatched
-                    ? `Sample color match (${matchAccuracy}%) did not reach the required tolerance (≥ 85%).`
+                    ? `Sample color match (${matchAccuracy}%) did not reach the required tolerance (≥ 70%).`
                     : 'The photo could not be reliably measured. Please review suggestions below.')
                 : 'Liquid spectrum successfully matched against calibrated standards.'}
             </Text>
           </View>
         </View>
 
-        {/* Test Saved to History Notification Strip */}
-        <View style={styles.historySavedStrip}>
-          <Text style={styles.historySavedText}>✓ Reading recorded in Test History</Text>
-          {onViewHistory && (
-            <Pressable onPress={onViewHistory} style={styles.historySavedBtn}>
-              <Text style={styles.historySavedBtnText}>View All History →</Text>
-            </Pressable>
-          )}
-        </View>
+        {/* Test Saved to History Notification Strip - Only recorded when matched */}
+        {!isRetake && (
+          <View style={styles.historySavedStrip}>
+            <Text style={styles.historySavedText}>✓ Reading recorded in Test History</Text>
+            {onViewHistory && (
+              <Pressable onPress={onViewHistory} style={styles.historySavedBtn}>
+                <Text style={styles.historySavedBtnText}>View All History →</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {/* RETAKE / REJECTION ALERT VIEW */}
         {isRetake && (
@@ -161,7 +170,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
             </Text>
             <Text style={styles.rejectionMessage}>
               {isColorUnmatched
-                ? `The detected liquid color match accuracy is ${matchAccuracy}%, which does not reach the required tolerance (≥ 85%). Please ensure neutral lighting, use a plain white background, and verify incubation before retaking, or complete the test to record this result.`
+                ? `The detected liquid color match accuracy is ${matchAccuracy}%, which does not reach the required tolerance (≥ 70%). Please ensure neutral lighting, use a plain white background, and verify incubation before retaking.`
                 : (result.rejection_message ||
                   'To make sure your result is accurate, please retake the photo with the suggestions below:')}
             </Text>
@@ -189,11 +198,11 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         {/* RESULT & COMPARISON PRESENTATION */}
         {(!isCaptureError || isColorUnmatched) && (
           <>
-            {/* Primary Winner Match Card */}
+            {/* Primary Winner Match Card - Shows matched standard with color and standard name only */}
             <View style={styles.winnerCard}>
               <View style={styles.winnerHeader}>
                 <Text style={styles.winnerTag}>
-                  {isColorUnmatched ? 'CLOSEST MEASURED RESULT' : 'MEASURED RESULT'}
+                  {isColorUnmatched ? 'CLOSEST STANDARD' : 'MATCHED STANDARD'}
                 </Text>
                 <View
                   style={[
@@ -205,57 +214,22 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                       styles.matchQualityText,
                       isColorUnmatched ? styles.textAmbiguous : styles.textStrong,
                     ]}>
-                    {isColorUnmatched ? 'Unmatched (< 85%)' : 'Matched'}
+                    {isColorUnmatched ? 'Unmatched' : 'Matched'}
                   </Text>
                 </View>
               </View>
 
-              {/* Main Reading: Matched Label Only (e.g. "NITRO 4 mg/L") */}
+              {/* Matched Standard Color & Standard Name Only */}
               <View style={styles.matchedResultBox}>
-                <Text style={styles.matchedResultLabel}>
-                  {isColorUnmatched ? 'CLOSEST STANDARD' : 'MATCHED STANDARD'}
-                </Text>
+                <View
+                  style={[
+                    styles.matchedStandardColorCircle,
+                    { backgroundColor: matchedStandardHex },
+                  ]}
+                />
                 <Text style={styles.matchedResultValue}>
                   {matchedLabel}
                 </Text>
-                <Text
-                  style={[
-                    styles.matchedSubtitle,
-                    isColorUnmatched && styles.unmatchedSubtitle,
-                  ]}>
-                  {isColorUnmatched
-                    ? `⚠️ ${matchAccuracy}% Match (Below 85% Tolerance)`
-                    : '✓ Verified Standard Match'}
-                </Text>
-              </View>
-
-              {/* Key Metrics Row */}
-              <View style={styles.metricRow}>
-                <View style={styles.metricBox}>
-                  <Text style={styles.metricLabel}>Match Accuracy</Text>
-                  <Text
-                    style={[
-                      styles.metricVal,
-                      isColorUnmatched && { color: JalqTheme.colors.amber },
-                    ]}>
-                    {matchAccuracy}%
-                  </Text>
-                  <Text style={styles.metricHint}>Color match</Text>
-                </View>
-
-                <View style={styles.metricBox}>
-                  <Text style={styles.metricLabel}>Image Clarity</Text>
-                  <Text style={styles.metricVal}>{Math.round(quality.overall)}%</Text>
-                  <Text style={styles.metricHint}>Sharpness</Text>
-                </View>
-
-                <View style={styles.metricBox}>
-                  <Text style={styles.metricLabel}>Calibrated</Text>
-                  <Text style={styles.metricVal}>
-                    {matchedStandard?.concentration ?? '—'} {matchedStandard?.unit ?? 'mg/L'}
-                  </Text>
-                  <Text style={styles.metricHint}>Reference</Text>
-                </View>
               </View>
             </View>
 
@@ -285,13 +259,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
                   <View
                     style={[
                       styles.colorSwatch,
-                      {
-                        backgroundColor:
-                          matchedStandard?.hex ||
-                          test.standards.find((s) => s.id === matchedStandard?.id)
-                            ?.reference_color.hex ||
-                          detectedHex,
-                      },
+                      { backgroundColor: matchedStandardHex },
                     ]}
                   />
                   <Text style={styles.colorBlockLabel}>Calibrated Standard</Text>
@@ -341,21 +309,32 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
       </ScrollView>
 
-      {/* Sticky Bottom Actions Footer - Always shows Retake & Complete */}
+      {/* Sticky Bottom Actions Footer - Shows Complete only when matched; Retake only when unmatched */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={styles.footerBtnRow}>
           <Pressable
             testID="btn-retake"
-            style={styles.secondaryFooterBtn}
+            style={[
+              styles.secondaryFooterBtn,
+              isRetake && styles.prominentRetakeBtn,
+            ]}
             onPress={onRetake}>
-            <Text style={styles.secondaryFooterBtnText}>↺ Retake Photo</Text>
+            <Text
+              style={[
+                styles.secondaryFooterBtnText,
+                isRetake && styles.prominentRetakeBtnText,
+              ]}>
+              ↺ Retake Photo
+            </Text>
           </Pressable>
-          <Pressable
-            testID="btn-complete"
-            style={styles.primaryFooterBtn}
-            onPress={onNewTest}>
-            <Text style={styles.primaryFooterBtnText}>Complete Test ✓</Text>
-          </Pressable>
+          {!isRetake && (
+            <Pressable
+              testID="btn-complete"
+              style={styles.primaryFooterBtn}
+              onPress={onNewTest}>
+              <Text style={styles.primaryFooterBtnText}>Complete Test ✓</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </SafeAreaView>
@@ -536,9 +515,23 @@ const styles = StyleSheet.create({
     borderColor: '#BAE6FD',
     borderWidth: 1.5,
     borderRadius: JalqTheme.radius.lg,
-    padding: 18,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matchedStandardColorCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
     marginBottom: 14,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   matchedResultLabel: {
     fontSize: 11,
@@ -549,7 +542,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   matchedResultValue: {
-    fontSize: 30,
+    fontSize: 26,
     fontWeight: '900',
     color: JalqTheme.colors.textPrimary,
     letterSpacing: -0.5,
@@ -854,5 +847,13 @@ const styles = StyleSheet.create({
   },
   secondaryFooterBtnText: {
     ...DS.ghostBtnText,
+  },
+  prominentRetakeBtn: {
+    backgroundColor: '#0284C7',
+    borderColor: '#0284C7',
+  },
+  prominentRetakeBtnText: {
+    color: '#FFFFFF',
+    fontWeight: '700',
   },
 });

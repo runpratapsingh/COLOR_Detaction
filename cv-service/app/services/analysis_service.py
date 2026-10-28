@@ -692,26 +692,7 @@ class AnalysisService:
                 "recommendations": self._generate_recommendations(rejection_reasons),
             }
 
-            if self.db:
-                try:
-                    test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
-                    real_chemical_test_id = self._resolve_chemical_test_id(chemical_test, effective_code)
-                    ResultRepository(self.db).save_result(
-                        chemical_test_id=real_chemical_test_id,
-                        test_id=effective_code,
-                        test_version=test_ver,
-                        status=status,
-                        detected_color=det_hex,
-                        lab_l=extracted_color["lab"]["l"],
-                        lab_a=extracted_color["lab"]["a"],
-                        lab_b=extracted_color["lab"]["b"],
-                        confidence=0.0,
-                        quality_score=quality_res["overall_score"],
-                        rejection_reasons=rejection_reasons,
-                        device_model=device_model,
-                    )
-                except Exception as e:
-                    logger.error(f"Failed to persist rejection result to DB: {e}", exc_info=True)
+            # Note: Do not persist rejected or unmatched tests to DB history per requirement
 
             if debug:
                 response["debug_artifacts"] = self._create_debug_artifacts(
@@ -790,8 +771,10 @@ class AnalysisService:
         is_out_of_range = match_res["is_out_of_range"]
         standard_distances = match_res["standard_distances"]
 
-        # Determine Final Status
-        if is_out_of_range:
+        best_match_percentage = matched_standard.get("match_percentage", 0.0) if matched_standard else 0.0
+
+        # Determine Final Status: >= 70% match accuracy is considered a match
+        if is_out_of_range or (best_match_percentage is not None and best_match_percentage < 70.0):
             status = AnalysisStatus.NO_MATCH_FOUND.value
         elif is_ambiguous:
             status = AnalysisStatus.AMBIGUOUS_RESULT.value
@@ -812,8 +795,6 @@ class AnalysisService:
         detected_hex = extracted_color.get("hex") or ColorConverter.rgb_to_hex(
             extracted_color["rgb"]["r"], extracted_color["rgb"]["g"], extracted_color["rgb"]["b"]
         )
-
-        best_match_percentage = matched_standard.get("match_percentage", 0.0) if matched_standard else 0.0
 
         recommendations = self._generate_recommendations(rejection_reasons)
         if status == AnalysisStatus.NO_MATCH_FOUND.value:
@@ -884,8 +865,8 @@ class AnalysisService:
             "recommendations": recommendations,
         }
 
-        # 10. Database Persistence
-        if self.db:
+        # 10. Database Persistence - Only persist matched results (match >= 70% and SUCCESS)
+        if self.db and status == AnalysisStatus.SUCCESS.value and (best_match_percentage is None or best_match_percentage >= 70.0):
             try:
                 test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
                 matched_std_id = matched_standard.get("id") if matched_standard else None

@@ -45,8 +45,16 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
 
     try {
       const items = await fetchTestHistory();
+      // Only include successfully matched tests (match >= 70% and SUCCESS)
+      const matchedOnly = items.filter(
+        (item) =>
+          item.status === 'SUCCESS' &&
+          (item.match_percentage === undefined ||
+            item.match_percentage === null ||
+            item.match_percentage >= 70)
+      );
       if (isMountedRef.current) {
-        setHistory(items);
+        setHistory(matchedOnly);
       }
     } catch (err: any) {
       if (isMountedRef.current) {

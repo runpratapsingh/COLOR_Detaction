@@ -60,6 +60,10 @@ def get_test_history(
         if r.delta_e is not None:
             match_pct = max(0.0, round((1.0 - min(25.0, r.delta_e) / 25.0) * 100.0, 1))
 
+        # Do not include unmatched or failed tests in history (require SUCCESS and match_percentage >= 70%)
+        if r.status != "SUCCESS" or (match_pct is not None and match_pct < 70.0):
+            continue
+
         test_name = None
         if r.chemical_test and hasattr(r.chemical_test, "name"):
             test_name = r.chemical_test.name

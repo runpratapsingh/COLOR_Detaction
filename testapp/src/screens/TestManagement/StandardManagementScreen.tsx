@@ -463,13 +463,6 @@ export const StandardManagementScreen: React.FC<StandardManagementScreenProps> =
                   <Text style={styles.detailsBtnText}>View Analysis</Text>
                 </Pressable>
 
-                {!isPublished && (
-                  <Pressable
-                    style={styles.recalibrateBtn}
-                    onPress={() => handleAddSampleToStandard(std)}>
-                    <Text style={styles.recalibrateBtnText}>📸 Recalibrate Bottle</Text>
-                  </Pressable>
-                )}
 
                 {!isPublished && (
                   <View style={styles.cardRightActions}>

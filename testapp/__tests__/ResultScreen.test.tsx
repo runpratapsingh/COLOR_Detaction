@@ -93,7 +93,7 @@ const mockMatchedResult = {
 } as unknown as JalqAnalysisResponse;
 
 describe('ResultScreen', () => {
-  it('renders both Retake and Complete Test buttons when color is unmatched (isRetake)', () => {
+  it('renders only Retake button and hides Complete Test button when color is unmatched (isRetake)', () => {
     const onRetake = jest.fn();
     const onNewTest = jest.fn();
 
@@ -113,21 +113,17 @@ describe('ResultScreen', () => {
     });
 
     const retakeBtn = root!.root.findByProps({ testID: 'btn-retake' });
-    const completeBtn = root!.root.findByProps({ testID: 'btn-complete' });
+    const completeBtns = root!.root.findAllByProps({ testID: 'btn-complete' });
 
     expect(retakeBtn).toBeDefined();
-    expect(completeBtn).toBeDefined();
+    expect(completeBtns.length).toBe(0);
 
-    // Verify callbacks
-    ReactTestRenderer.act(() => {
-      completeBtn.props.onPress();
-    });
-    expect(onNewTest).toHaveBeenCalledTimes(1);
-
+    // Verify retake callback works
     ReactTestRenderer.act(() => {
       retakeBtn.props.onPress();
     });
     expect(onRetake).toHaveBeenCalledTimes(1);
+    expect(onNewTest).not.toHaveBeenCalled();
   });
 
   it('renders both Retake and Complete Test buttons when analysis is successful', () => {
