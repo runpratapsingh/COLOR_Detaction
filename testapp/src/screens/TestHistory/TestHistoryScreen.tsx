@@ -16,7 +16,11 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { JalqTheme } from '../../theme/colors';
 import { PerformedTestHistoryItem, UserSession } from '../../types/jalq';
-import { deleteTestHistoryItem, fetchTestHistory } from '../../services/jalqApi';
+import {
+  clearAllTestHistory,
+  deleteTestHistoryItem,
+  fetchTestHistory,
+} from '../../services/jalqApi';
 import { HeaderBackButton } from '../../components';
 
 interface TestHistoryScreenProps {
@@ -24,17 +28,31 @@ interface TestHistoryScreenProps {
   onBack: () => void;
 }
 
+const PAGE_SIZE = 20;
+
 export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
   session,
   onBack,
 }) => {
   const [history, setHistory] = useState<PerformedTestHistoryItem[]>([]);
+  const [totalCount, setTotalCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [isClearingAll, setIsClearingAll] = useState(false);
   const [selectedTest, setSelectedTest] = useState<PerformedTestHistoryItem | null>(null);
 
   const isMountedRef = useRef(true);
+
+  const sortByNewest = (items: PerformedTestHistoryItem[]): PerformedTestHistoryItem[] => {
+    return [...items].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeB - timeA;
+    });
+  };
 
   const loadHistory = useCallback(async (isRefresh = false) => {
     if (isRefresh) {
@@ -44,9 +62,12 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
     }
 
     try {
-      const items = await fetchTestHistory();
+      const res = await fetchTestHistory(undefined, PAGE_SIZE, 0);
       if (isMountedRef.current) {
-        setHistory(items);
+        const sorted = sortByNewest(res.items);
+        setHistory(sorted);
+        setTotalCount(res.total);
+        setHasMore(sorted.length < res.total);
       }
     } catch (err: any) {
       if (isMountedRef.current) {
@@ -59,6 +80,39 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
       }
     }
   }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loading || refreshing || loadingMore || !hasMore) return;
+
+    try {
+      setLoadingMore(true);
+      const currentOffset = history.length;
+      const res = await fetchTestHistory(undefined, PAGE_SIZE, currentOffset);
+
+      if (isMountedRef.current) {
+        if (!res.items || res.items.length === 0) {
+          setHasMore(false);
+        } else {
+          setHistory((prev) => {
+            const existingIds = new Set(prev.map((i) => i.id));
+            const newItems = res.items.filter((i) => !existingIds.has(i.id));
+            const combined = [...prev, ...newItems];
+            return sortByNewest(combined);
+          });
+          setTotalCount(res.total);
+          setHasMore(history.length + res.items.length < res.total);
+        }
+      }
+    } catch (err: any) {
+      if (isMountedRef.current) {
+        console.warn('Failed to load more test history:', err);
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setLoadingMore(false);
+      }
+    }
+  }, [loading, refreshing, loadingMore, hasMore, history.length]);
 
   useFocusEffect(
     useCallback(() => {
@@ -85,12 +139,45 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
               await deleteTestHistoryItem(item.id);
               if (isMountedRef.current) {
                 setHistory((prev) => prev.filter((h) => h.id !== item.id));
+                setTotalCount((prev) => Math.max(0, prev - 1));
               }
             } catch (err: any) {
               Alert.alert('Error', err.message || 'Failed to delete history record.');
             } finally {
               if (isMountedRef.current) {
                 setDeletingId(null);
+              }
+            }
+          },
+        },
+      ]
+    );
+  };
+
+  const handleClearAll = () => {
+    Alert.alert(
+      'Clear All History',
+      'Are you sure you want to delete all performed test history records from the database? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Clear All',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsClearingAll(true);
+              await clearAllTestHistory();
+              if (isMountedRef.current) {
+                setHistory([]);
+                setTotalCount(0);
+                setHasMore(false);
+              }
+              Alert.alert('Success', 'All test history has been cleared.');
+            } catch (err: any) {
+              Alert.alert('Error', err.message || 'Failed to clear test history.');
+            } finally {
+              if (isMountedRef.current) {
+                setIsClearingAll(false);
               }
             }
           },
@@ -243,6 +330,25 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
     );
   };
 
+  const renderFooter = () => {
+    if (loadingMore) {
+      return (
+        <View style={styles.footerLoader}>
+          <ActivityIndicator size="small" color={JalqTheme.colors.primary} />
+          <Text style={styles.footerLoaderText}>Loading more tests...</Text>
+        </View>
+      );
+    }
+    if (history.length > 0 && !hasMore) {
+      return (
+        <View style={styles.footerEnd}>
+          <Text style={styles.footerEndText}>✓ All {totalCount || history.length} tests loaded</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
@@ -251,11 +357,25 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
       <View style={styles.navBar}>
         <HeaderBackButton onPress={onBack} label="Back" />
         <Text style={styles.navTitle}>Performed Tests History</Text>
-        <Pressable
-          style={styles.refreshIconBtn}
-          onPress={() => loadHistory(true)}>
-          <Text style={styles.refreshIconText}>↻</Text>
-        </Pressable>
+        <View style={styles.navActions}>
+          {history.length > 0 && (
+            <Pressable
+              style={styles.clearAllBtn}
+              onPress={handleClearAll}
+              disabled={isClearingAll}>
+              {isClearingAll ? (
+                <ActivityIndicator size="small" color="#EF4444" />
+              ) : (
+                <Text style={styles.clearAllBtnText}>Clear All</Text>
+              )}
+            </Pressable>
+          )}
+          <Pressable
+            style={styles.refreshIconBtn}
+            onPress={() => loadHistory(true)}>
+            <Text style={styles.refreshIconText}>↻</Text>
+          </Pressable>
+        </View>
       </View>
 
       {/* Stats Summary Strip with Tab Filtering */}
@@ -266,7 +386,7 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
             filterMode === 'ALL' && styles.statBoxActive,
           ]}
           onPress={() => setFilterMode('ALL')}>
-          <Text style={styles.statNumber}>{history.length}</Text>
+          <Text style={styles.statNumber}>{totalCount || history.length}</Text>
           <Text style={[styles.statLabel, filterMode === 'ALL' && styles.statLabelActive]}>
             Total Tests
           </Text>
@@ -314,6 +434,9 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
           renderItem={renderHistoryCard}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.4}
+          ListFooterComponent={renderFooter}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -487,6 +610,22 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#0F172A',
   },
+  navActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  clearAllBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 6,
+  },
+  clearAllBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#DC2626',
+  },
   refreshIconBtn: {
     padding: 6,
   },
@@ -494,6 +633,28 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '700',
     color: JalqTheme.colors.primary,
+  },
+  footerLoader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+    gap: 8,
+  },
+  footerLoaderText: {
+    fontSize: 13,
+    color: '#64748B',
+    fontWeight: '600',
+  },
+  footerEnd: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 18,
+  },
+  footerEndText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    fontWeight: '600',
   },
   statsStrip: {
     flexDirection: 'row',

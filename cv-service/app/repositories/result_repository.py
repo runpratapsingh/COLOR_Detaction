@@ -52,13 +52,24 @@ class ResultRepository:
         self.db.refresh(res)
         return res
 
-    def get_history(self, limit: int = 100, test_id: str | None = None) -> list[AnalysisResult]:
-        query = self.db.query(AnalysisResult).order_by(AnalysisResult.created_at.desc())
+    def get_history(self, limit: int = 20, offset: int = 0, test_id: str | None = None) -> list[AnalysisResult]:
+        query = self.db.query(AnalysisResult).order_by(
+            AnalysisResult.created_at.desc(),
+            AnalysisResult.id.desc(),
+        )
         if test_id:
             query = query.filter(
                 (AnalysisResult.test_id == test_id) | (AnalysisResult.chemical_test_id == test_id)
             )
-        return query.limit(limit).all()
+        return query.offset(offset).limit(limit).all()
+
+    def get_history_count(self, test_id: str | None = None) -> int:
+        query = self.db.query(AnalysisResult)
+        if test_id:
+            query = query.filter(
+                (AnalysisResult.test_id == test_id) | (AnalysisResult.chemical_test_id == test_id)
+            )
+        return query.count()
 
     def get_by_id(self, result_id: str) -> AnalysisResult | None:
         return self.db.query(AnalysisResult).filter(AnalysisResult.id == result_id).first()
@@ -70,3 +81,13 @@ class ResultRepository:
             self.db.commit()
             return True
         return False
+
+    def delete_all_results(self, test_id: str | None = None) -> int:
+        query = self.db.query(AnalysisResult)
+        if test_id:
+            query = query.filter(
+                (AnalysisResult.test_id == test_id) | (AnalysisResult.chemical_test_id == test_id)
+            )
+        count = query.delete(synchronize_session=False)
+        self.db.commit()
+        return count

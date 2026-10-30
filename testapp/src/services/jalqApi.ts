@@ -685,12 +685,27 @@ export async function analyzeBottleCapture(options: AnalyzeOptions): Promise<Jal
 }
 
 /**
- * Fetch the history of all performed chemical tests from the database.
+ * Paginated response structure for test history.
  */
-export async function fetchTestHistory(testId?: string): Promise<PerformedTestHistoryItem[]> {
-  const url = testId
-    ? `${JALQ_API_BASE}/history?test_id=${encodeURIComponent(testId)}&limit=100`
-    : `${JALQ_API_BASE}/history?limit=100`;
+export interface PaginatedTestHistoryResponse {
+  items: PerformedTestHistoryItem[];
+  total: number;
+}
+
+/**
+ * Fetch paginated history of performed chemical tests from the database.
+ * Supports limit and offset so all tests can be browsed with pagination,
+ * sorted with the most recent tests on top.
+ */
+export async function fetchTestHistory(
+  testId?: string,
+  limit: number = 20,
+  offset: number = 0
+): Promise<PaginatedTestHistoryResponse> {
+  let url = `${JALQ_API_BASE}/history?limit=${limit}&offset=${offset}`;
+  if (testId) {
+    url += `&test_id=${encodeURIComponent(testId)}`;
+  }
 
   const response = await fetch(url, {
     method: 'GET',
@@ -703,8 +718,35 @@ export async function fetchTestHistory(testId?: string): Promise<PerformedTestHi
     throw new Error(`Failed to fetch test history (${response.status})`);
   }
 
+  const totalHeader = response.headers.get('X-Total-Count');
   const data = await response.json();
-  return Array.isArray(data) ? data : [];
+  const items: PerformedTestHistoryItem[] = Array.isArray(data) ? data : [];
+  const total = totalHeader ? parseInt(totalHeader, 10) : (offset + items.length);
+
+  return { items, total };
+}
+
+/**
+ * Clear all test history records from database.
+ */
+export async function clearAllTestHistory(testId?: string): Promise<number> {
+  const url = testId
+    ? `${JALQ_API_BASE}/history?test_id=${encodeURIComponent(testId)}`
+    : `${JALQ_API_BASE}/history`;
+
+  const response = await fetch(url, {
+    method: 'DELETE',
+    headers: {
+      Accept: 'application/json',
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to clear test history (${response.status})`);
+  }
+
+  const data = await response.json();
+  return data?.deleted_count ?? 0;
 }
 
 /**

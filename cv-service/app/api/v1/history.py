@@ -1,6 +1,6 @@
 import json
 from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
@@ -36,13 +36,20 @@ class HistoryItemResponse(BaseModel):
 @router.get("/history", response_model=List[HistoryItemResponse])
 @router.get("/tests/history", response_model=List[HistoryItemResponse])
 def get_test_history(
+    response: Response,
     test_id: Optional[str] = Query(None, description="Filter by test code or test ID"),
-    limit: int = Query(100, ge=1, le=500),
+    limit: int = Query(20, ge=1, le=500),
+    offset: int = Query(0, ge=0),
     db: Session = Depends(get_db),
 ):
-    """Retrieve history of all performed chemical tests with comprehensive measurement details."""
+    """Retrieve history of all performed chemical tests with comprehensive measurement details and pagination."""
     repo = ResultRepository(db)
-    records = repo.get_history(limit=limit, test_id=test_id)
+    total_count = repo.get_history_count(test_id=test_id)
+    records = repo.get_history(limit=limit, offset=offset, test_id=test_id)
+
+    response.headers["X-Total-Count"] = str(total_count)
+    response.headers["Access-Control-Expose-Headers"] = "X-Total-Count"
+
     out = []
     for r in records:
         reasons = []
@@ -91,6 +98,18 @@ def get_test_history(
             )
         )
     return out
+
+
+@router.delete("/history")
+@router.delete("/history/clear-all")
+def clear_all_test_history(
+    test_id: Optional[str] = Query(None, description="Optional test_id to clear only for that test"),
+    db: Session = Depends(get_db),
+):
+    """Delete all history entries (or all for a specific test_id)."""
+    repo = ResultRepository(db)
+    deleted_count = repo.delete_all_results(test_id=test_id)
+    return {"message": f"Successfully deleted {deleted_count} history records", "deleted_count": deleted_count}
 
 
 @router.delete("/history/{result_id}")
