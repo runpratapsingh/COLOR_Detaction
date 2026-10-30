@@ -240,9 +240,9 @@ export const ValidationGateModal: React.FC<ValidationGateModalProps> = ({
             </View>
           )}
 
-          {/* Retake Button */}
+          {/* Dismiss Action Button */}
           <Pressable style={styles.retakeBtn} onPress={onRetake}>
-            <Text style={styles.retakeBtnText}>Retake Photo</Text>
+            <Text style={styles.retakeBtnText}>Dismiss</Text>
           </Pressable>
         </ScrollView>
 

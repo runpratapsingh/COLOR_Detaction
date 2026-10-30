@@ -115,11 +115,9 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
               <Text style={styles.headerHistoryText}>📋 History</Text>
             </Pressable>
           )}
-          {!isRetake && (
-            <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
-              <Text style={styles.headerDoneText}>Done</Text>
-            </Pressable>
-          )}
+          <Pressable style={styles.headerDoneBtn} onPress={onNewTest}>
+            <Text style={styles.headerDoneText}>Done</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -150,17 +148,19 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
           </View>
         </View>
 
-        {/* Test Saved to History Notification Strip - Only recorded when matched */}
-        {!isRetake && (
-          <View style={styles.historySavedStrip}>
-            <Text style={styles.historySavedText}>✓ Reading recorded in Test History</Text>
-            {onViewHistory && (
-              <Pressable onPress={onViewHistory} style={styles.historySavedBtn}>
-                <Text style={styles.historySavedBtnText}>View All History →</Text>
-              </Pressable>
-            )}
-          </View>
-        )}
+        {/* Test Saved to History Notification Strip - Recorded for both matched and unmatched tests */}
+        <View style={styles.historySavedStrip}>
+          <Text style={styles.historySavedText}>
+            {isRetake
+              ? '📋 Test recorded in History (Unmatched)'
+              : '✓ Reading recorded in Test History'}
+          </Text>
+          {onViewHistory && (
+            <Pressable onPress={onViewHistory} style={styles.historySavedBtn}>
+              <Text style={styles.historySavedBtnText}>View All History →</Text>
+            </Pressable>
+          )}
+        </View>
 
         {/* RETAKE / REJECTION ALERT VIEW */}
         {isRetake && (
@@ -309,32 +309,17 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
         )}
       </ScrollView>
 
-      {/* Sticky Bottom Actions Footer - Shows Complete only when matched; Retake only when unmatched */}
+      {/* Sticky Bottom Actions Footer */}
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) }]}>
         <View style={styles.footerBtnRow}>
           <Pressable
-            testID="btn-retake"
-            style={[
-              styles.secondaryFooterBtn,
-              isRetake && styles.prominentRetakeBtn,
-            ]}
-            onPress={onRetake}>
-            <Text
-              style={[
-                styles.secondaryFooterBtnText,
-                isRetake && styles.prominentRetakeBtnText,
-              ]}>
-              ↺ Retake Photo
+            testID="btn-complete"
+            style={styles.primaryFooterBtn}
+            onPress={onNewTest}>
+            <Text style={styles.primaryFooterBtnText}>
+              {isRetake ? 'Done' : 'Complete Test ✓'}
             </Text>
           </Pressable>
-          {!isRetake && (
-            <Pressable
-              testID="btn-complete"
-              style={styles.primaryFooterBtn}
-              onPress={onNewTest}>
-              <Text style={styles.primaryFooterBtnText}>Complete Test ✓</Text>
-            </Pressable>
-          )}
         </View>
       </View>
     </SafeAreaView>

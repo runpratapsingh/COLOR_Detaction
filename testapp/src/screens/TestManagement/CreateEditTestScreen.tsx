@@ -131,14 +131,35 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
   }, [testId]);
 
   const handleSave = async () => {
-    if (!code.trim()) {
-      Alert.alert('Validation Error', 'Test Code / ID is required (e.g. NITRATE_001).');
+    const cleanCode = code.trim();
+    if (!cleanCode) {
+      Alert.alert('Validation Error', 'Test Code / ID is required (e.g. NITRATE001).');
       return;
     }
-    if (!name.trim()) {
+    // Test ID must be alphanumeric only (letters and digits). If editing an existing test with underscore, allow it.
+    const isAlphaNumeric = isEditing ? /^[a-zA-Z0-9_]+$/.test(cleanCode) : /^[a-zA-Z0-9]+$/.test(cleanCode);
+    if (!isAlphaNumeric) {
+      Alert.alert(
+        'Validation Error',
+        'Test Code / ID must be alphanumeric only (letters and numbers only, no special characters or spaces).'
+      );
+      return;
+    }
+
+    const cleanName = name.trim();
+    if (!cleanName) {
       Alert.alert('Validation Error', 'Test Name is required.');
       return;
     }
+    // Test Name must be alphabetic only (letters and spaces only)
+    if (!/^[a-zA-Z\s]+$/.test(cleanName)) {
+      Alert.alert(
+        'Validation Error',
+        'Test Name must be alphabetic only (letters and spaces only, no numbers or special characters).'
+      );
+      return;
+    }
+
     const incSecs = Math.max(10, parseInt(incubationMinutes, 10) * 60 || 300);
     const incTol = Math.max(10, parseInt(incubationToleranceSecs, 10) || 60);
 
@@ -195,6 +216,7 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
         <HeaderBackButton onPress={onBack} label="Cancel" />
         <Text style={styles.navTitle}>{isEditing ? 'Edit Protocol' : 'New Chemical Assay'}</Text>
         <Pressable
+          testID="btn-save-test"
           style={[styles.saveTopBtn, saving && styles.btnDisabled]}
           disabled={saving}
           onPress={handleSave}>
@@ -216,13 +238,13 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
                 style={[styles.input, isEditing && styles.inputReadonly]}
                 value={code}
                 onChangeText={setCode}
-                placeholder="e.g. NITRATE_001"
+                placeholder="e.g. NITRATE001"
                 placeholderTextColor={JalqTheme.colors.textMuted}
                 autoCapitalize="characters"
                 editable={!isEditing}
               />
               <Text style={styles.fieldHint}>
-                Unique identifier across calibration sets
+                Alphanumeric only (letters and numbers, no symbols or spaces)
               </Text>
             </View>
 
@@ -232,9 +254,12 @@ export const CreateEditTestScreen: React.FC<CreateEditTestScreenProps> = ({
                 style={styles.input}
                 value={name}
                 onChangeText={setName}
-                placeholder="e.g. Nitrate (NO3-) Concentration Assay"
+                placeholder="e.g. Nitrate Concentration Test"
                 placeholderTextColor={JalqTheme.colors.textMuted}
               />
+              <Text style={styles.fieldHint}>
+                Alphabetic only (letters and spaces only, no numbers or symbols)
+              </Text>
             </View>
 
             <View style={styles.rowTwo}>

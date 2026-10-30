@@ -274,7 +274,7 @@ export const BottleColorDetectionScreen: React.FC = () => {
           ) : capturedPhotoUri ? (
             <View style={styles.cameraControlBar}>
               <TouchableOpacity style={styles.retakeBtn} onPress={handleRetake}>
-                <Text style={styles.retakeBtnText}>🔄 RETAKE PHOTO</Text>
+                <Text style={styles.retakeBtnText}>📸 NEW PHOTO</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.uploadBtn} onPress={handlePickImageFromGallery}>
                 <Text style={styles.uploadBtnText}>🖼️ CHOOSE OTHER</Text>

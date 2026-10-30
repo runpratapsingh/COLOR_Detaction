@@ -45,16 +45,8 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
 
     try {
       const items = await fetchTestHistory();
-      // Only include successfully matched tests (match >= 70% and SUCCESS)
-      const matchedOnly = items.filter(
-        (item) =>
-          item.status === 'SUCCESS' &&
-          (item.match_percentage === undefined ||
-            item.match_percentage === null ||
-            item.match_percentage >= 70)
-      );
       if (isMountedRef.current) {
-        setHistory(matchedOnly);
+        setHistory(items);
       }
     } catch (err: any) {
       if (isMountedRef.current) {
@@ -124,12 +116,25 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
     }
   };
 
-  const matchedCount = history.filter((h) => h.status === 'SUCCESS').length;
+  const isItemMatched = (item: PerformedTestHistoryItem) =>
+    item.status === 'SUCCESS' &&
+    (item.match_percentage === undefined ||
+      item.match_percentage === null ||
+      item.match_percentage >= 70);
+
+  const [filterMode, setFilterMode] = useState<'ALL' | 'MATCHED' | 'UNMATCHED'>('ALL');
+
+  const matchedCount = history.filter(isItemMatched).length;
   const unmatchedCount = history.length - matchedCount;
 
+  const filteredHistory = history.filter((item) => {
+    if (filterMode === 'MATCHED') return isItemMatched(item);
+    if (filterMode === 'UNMATCHED') return !isItemMatched(item);
+    return true;
+  });
+
   const renderHistoryCard = ({ item }: { item: PerformedTestHistoryItem }) => {
-    const isSuccess = item.status === 'SUCCESS';
-    const isUnmatched = item.status === 'NO_MATCH_FOUND';
+    const isSuccess = isItemMatched(item);
     const isDeleting = deletingId === item.id;
 
     const detectedColor = item.detected_color?.startsWith('#')
@@ -150,22 +155,14 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
           <View
             style={[
               styles.statusBadge,
-              isSuccess
-                ? styles.badgeSuccess
-                : isUnmatched
-                ? styles.badgeWarning
-                : styles.badgeRetake,
+              isSuccess ? styles.badgeSuccess : styles.badgeWarning,
             ]}>
             <Text
               style={[
                 styles.statusBadgeText,
-                isSuccess
-                  ? styles.textSuccess
-                  : isUnmatched
-                  ? styles.textWarning
-                  : styles.textRetake,
+                isSuccess ? styles.textSuccess : styles.textWarning,
               ]}>
-              {isSuccess ? '✓ Matched' : isUnmatched ? '⚠️ No Match' : 'Re-take'}
+              {isSuccess ? '✓ Matched' : '⚠️ Unmatched'}
             </Text>
           </View>
         </View>
@@ -261,26 +258,47 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
         </Pressable>
       </View>
 
-      {/* Stats Summary Strip */}
+      {/* Stats Summary Strip with Tab Filtering */}
       <View style={styles.statsStrip}>
-        <View style={styles.statBox}>
+        <Pressable
+          style={[
+            styles.statBox,
+            filterMode === 'ALL' && styles.statBoxActive,
+          ]}
+          onPress={() => setFilterMode('ALL')}>
           <Text style={styles.statNumber}>{history.length}</Text>
-          <Text style={styles.statLabel}>Total Tests</Text>
-        </View>
+          <Text style={[styles.statLabel, filterMode === 'ALL' && styles.statLabelActive]}>
+            Total Tests
+          </Text>
+        </Pressable>
         <View style={styles.statDivider} />
-        <View style={styles.statBox}>
+        <Pressable
+          style={[
+            styles.statBox,
+            filterMode === 'MATCHED' && styles.statBoxActive,
+          ]}
+          onPress={() => setFilterMode('MATCHED')}>
           <Text style={[styles.statNumber, { color: JalqTheme.colors.emerald }]}>
             {matchedCount}
           </Text>
-          <Text style={styles.statLabel}>Matched</Text>
-        </View>
+          <Text style={[styles.statLabel, filterMode === 'MATCHED' && styles.statLabelActive]}>
+            Matched
+          </Text>
+        </Pressable>
         <View style={styles.statDivider} />
-        <View style={styles.statBox}>
+        <Pressable
+          style={[
+            styles.statBox,
+            filterMode === 'UNMATCHED' && styles.statBoxActive,
+          ]}
+          onPress={() => setFilterMode('UNMATCHED')}>
           <Text style={[styles.statNumber, { color: JalqTheme.colors.amber }]}>
             {unmatchedCount}
           </Text>
-          <Text style={styles.statLabel}>Unmatched</Text>
-        </View>
+          <Text style={[styles.statLabel, filterMode === 'UNMATCHED' && styles.statLabelActive]}>
+            Unmatched
+          </Text>
+        </Pressable>
       </View>
 
       {/* History List */}
@@ -291,7 +309,7 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
         </View>
       ) : (
         <FlatList
-          data={history}
+          data={filteredHistory}
           keyExtractor={(item) => item.id}
           renderItem={renderHistoryCard}
           contentContainerStyle={styles.listContent}
@@ -306,7 +324,13 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyIcon}>📋</Text>
-              <Text style={styles.emptyTitle}>No test history recorded</Text>
+              <Text style={styles.emptyTitle}>
+                {filterMode === 'MATCHED'
+                  ? 'No matched tests found'
+                  : filterMode === 'UNMATCHED'
+                  ? 'No unmatched tests found'
+                  : 'No test history recorded'}
+              </Text>
               <Text style={styles.emptyDesc}>
                 Any chemical bottle test performed by field technicians will be automatically recorded in the database with full colorimetry metrics.
               </Text>
@@ -345,18 +369,14 @@ export const TestHistoryScreen: React.FC<TestHistoryScreenProps> = ({
                 <View
                   style={[
                     styles.modalStatusBanner,
-                    selectedTest.status === 'SUCCESS'
+                    isItemMatched(selectedTest)
                       ? styles.badgeSuccess
-                      : selectedTest.status === 'NO_MATCH_FOUND'
-                      ? styles.badgeWarning
-                      : styles.badgeRetake,
+                      : styles.badgeWarning,
                   ]}>
                   <Text style={styles.modalStatusText}>
-                    {selectedTest.status === 'SUCCESS'
+                    {isItemMatched(selectedTest)
                       ? '✓ Chemical Reading Matched'
-                      : selectedTest.status === 'NO_MATCH_FOUND'
-                      ? '⚠️ Unmatched / Out of Range'
-                      : 'Photo Needs Retake'}
+                      : '⚠️ Unmatched / Out of Range'}
                   </Text>
                 </View>
 
@@ -494,6 +514,12 @@ const styles = StyleSheet.create({
   },
   statBox: {
     alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statBoxActive: {
+    backgroundColor: '#F1F5F9',
   },
   statNumber: {
     fontSize: 18,
@@ -505,6 +531,10 @@ const styles = StyleSheet.create({
     color: '#64748B',
     fontWeight: '600',
     marginTop: 2,
+  },
+  statLabelActive: {
+    color: '#0F172A',
+    fontWeight: '800',
   },
   statDivider: {
     width: 1,

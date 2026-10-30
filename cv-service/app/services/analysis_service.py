@@ -503,6 +503,37 @@ class AnalysisService:
             "averaged_lab": {"l": round(avg_l, 2), "a": round(avg_a, 2), "b": round(avg_b, 2)},
             "note": f"Result averaged from {len(passing_labs)} of {len(images_bytes)} submitted shots.",
         }
+
+        # Multi-shot Database Persistence - Save completed test
+        if self.db:
+            try:
+                test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
+                matched_std = match_res.get("matched_standard") or {}
+                matched_std_id = matched_std.get("id")
+                matched_std_val = matched_std.get("concentration")
+                real_chemical_test_id = self._resolve_chemical_test_id(chemical_test, effective_code)
+                ResultRepository(self.db).save_result(
+                    chemical_test_id=real_chemical_test_id,
+                    test_id=effective_code,
+                    test_version=test_ver,
+                    status=result["status"],
+                    detected_color=result.get("detected_color", {}).get("hex") or match_res.get("best_color_name"),
+                    detected_level=match_res.get("best_level"),
+                    matched_standard_id=matched_std_id,
+                    matched_standard_value=matched_std_val,
+                    lab_l=avg_l,
+                    lab_a=avg_a,
+                    lab_b=avg_b,
+                    delta_e=match_res.get("delta_e_00"),
+                    second_best_delta_e=match_res.get("second_best_delta_e"),
+                    confidence=result.get("classification", {}).get("confidence", 0.0),
+                    quality_score=round(avg_quality, 1),
+                    rejection_reasons=None,
+                    device_model=device_model,
+                )
+            except Exception as e:
+                logger.error(f"Failed to persist multi-shot analysis result to DB: {e}", exc_info=True)
+
         return result
 
     def analyze(
@@ -865,8 +896,8 @@ class AnalysisService:
             "recommendations": recommendations,
         }
 
-        # 10. Database Persistence - Only persist matched results (match >= 70% and SUCCESS)
-        if self.db and status == AnalysisStatus.SUCCESS.value and (best_match_percentage is None or best_match_percentage >= 70.0):
+        # 10. Database Persistence - Save both matched and unmatched completed tests
+        if self.db:
             try:
                 test_ver = getattr(chemical_test, "version", 1) if chemical_test else 1
                 matched_std_id = matched_standard.get("id") if matched_standard else None

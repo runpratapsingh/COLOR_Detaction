@@ -95,7 +95,7 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
             const nextSuggested = maxVal >= 1 ? Math.round((maxVal + 1) * 10) / 10 : 1.0;
             setStandardValue(String(nextSuggested));
           } else {
-            setStandardValue('0');
+            setStandardValue('1');
           }
 
         }
@@ -262,7 +262,7 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
   };
 
   const performReplaceStandard = async (targetStd: any) => {
-    if (!analysisResult) return;
+    if (!analysisResult || !analysisResult.detected_color) return;
     const det = analysisResult.detected_color;
     const q = analysisResult.quality;
     setSaving(true);
@@ -372,27 +372,18 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
     if (duplicateColor?.is_duplicate_color) {
       Alert.alert(
         'Duplicate Bottle Color Detected',
-        `This photo's liquid color is a ${duplicateColor.similarity_percentage}% match (ΔE = ${duplicateColor.delta_e}) to registered bottle "${duplicateColor.matched_standard_name}".\n\nEach chemical standard bottle must have a distinct color. You cannot add the same bottle color again as a new standard.`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: `Average into ${duplicateColor.matched_concentration} ${duplicateColor.unit} Bottle`,
-            style: 'default',
-            onPress: () => {
-              const matched = test?.standards.find((s) => s.id === duplicateColor.matched_standard_id);
-              if (matched) {
-                performAverageIntoStandard(matched);
-              }
-            },
-          },
-        ]
+        `This photo's liquid color is a ${duplicateColor.similarity_percentage}% match (ΔE = ${duplicateColor.delta_e}) to registered bottle "${duplicateColor.matched_standard_name}".\n\nEach chemical standard bottle must have a distinct color. This standard is already added.`,
+        [{ text: 'OK' }]
       );
       return;
     }
 
     const val = parseFloat(standardValue);
-    if (isNaN(val)) {
-      Alert.alert('Invalid Value', 'Please enter a valid numeric standard concentration value.');
+    if (isNaN(val) || val <= 0) {
+      Alert.alert(
+        'Invalid Value',
+        'Standard concentration value must be greater than 0. Standard 0 cannot be added.'
+      );
       return;
     }
 
@@ -402,21 +393,9 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
 
     if (existingStandard) {
       Alert.alert(
-        'Bottle Already Configured',
-        `A reference standard for ${val} ${unit} is already saved in this test. How would you like to handle this photo?`,
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Replace Previous Color',
-            style: 'destructive',
-            onPress: () => performReplaceStandard(existingStandard),
-          },
-          {
-            text: 'Average with Bottle (Recommended)',
-            style: 'default',
-            onPress: () => performAverageIntoStandard(existingStandard),
-          },
-        ]
+        'Standard Already Added',
+        `A reference standard for ${val} ${unit} is already saved in this test. Duplicate standards cannot be added.`,
+        [{ text: 'OK' }]
       );
       return;
     }
@@ -543,18 +522,29 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
 
             {(() => {
               const valNum = parseFloat(standardValue);
+              if (!isNaN(valNum) && valNum <= 0) {
+                return (
+                  <View style={styles.shadeNoticeBox}>
+                    <Text style={styles.shadeNoticeTitle}>
+                      ⚠️ Standard 0 Not Allowed
+                    </Text>
+                    <Text style={styles.shadeNoticeDesc}>
+                      Standard concentration must be greater than 0. Standard 0 cannot be added.
+                    </Text>
+                  </View>
+                );
+              }
               const count = test?.standards.filter((s) => !isNaN(valNum) && Math.abs(s.value - valNum) < 1e-4).length || 0;
               if (count === 0) return null;
               return (
                 <View style={styles.shadeNoticeBox}>
                   <Text style={styles.shadeNoticeTitle}>
-                    💡 Bottle Already Configured (1 Standard Exists)
+                    ⚠️ Standard Already Added
                   </Text>
                   <Text style={styles.shadeNoticeDesc}>
-                    A standard for {standardValue} {unit} is already saved. Saving this photo will average its color with the existing bottle to remove glare and camera lighting noise, maintaining exactly 1 clean standard card.
+                    A standard for {standardValue} {unit} is already saved in this test. Duplicate standards cannot be added.
                   </Text>
                 </View>
-
               );
             })()}
           </View>
@@ -606,11 +596,11 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
               </View>
             )}
 
-            {/* Action Buttons: Retake / Upload / Capture */}
+            {/* Action Buttons: Upload / Capture */}
             <View style={styles.buttonRow}>
               <Pressable style={styles.captureBtn} onPress={handleCaptureCamera}>
                 <Text style={styles.captureBtnText}>
-                  {displayImageUri ? 'Retake Photo' : 'Take Photo'}
+                  Take Photo
                 </Text>
               </Pressable>
 
@@ -720,13 +710,10 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
                       </View>
                     </View>
 
-                    {/* Quick Re-upload / Retake Bar */}
+                    {/* Quick Re-upload Bar */}
                     <View style={styles.reuploadBar}>
                       <Text style={styles.reuploadPrompt}>Need a different photo?</Text>
                       <View style={styles.reuploadBtnRow}>
-                        <Pressable style={styles.reuploadBtn} onPress={handleCaptureCamera}>
-                          <Text style={styles.reuploadBtnText}>Retake</Text>
-                        </Pressable>
                         <Pressable style={styles.reuploadBtn} onPress={handlePickGallery}>
                           <Text style={styles.reuploadBtnText}>Upload New</Text>
                         </Pressable>
@@ -815,31 +802,6 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
                           {duplicateColor.matched_standard_name} ({duplicateColor.matched_concentration} {duplicateColor.unit})
                         </Text>. In chemical colorimetry, each standard bottle must have a distinct color. You cannot register the same bottle color again as a new standard.
                       </Text>
-
-                      <View style={styles.duplicateColorActionsRow}>
-                        <Pressable
-                          style={styles.recalibrateExistingBtn}
-                          onPress={() => {
-                            const matched = test?.standards.find(
-                              (s) => s.id === duplicateColor.matched_standard_id
-                            );
-                            if (matched) {
-                              performAverageIntoStandard(matched);
-                            }
-                          }}>
-                          <Text style={styles.recalibrateExistingBtnText}>
-                            📸 Recalibrate {duplicateColor.matched_concentration} {duplicateColor.unit} Bottle
-                          </Text>
-                        </Pressable>
-
-                        <Pressable
-                          style={styles.retakeDifferentBtn}
-                          onPress={handleCaptureCamera}>
-                          <Text style={styles.retakeDifferentBtnText}>
-                            🔄 Retake with Next Bottle
-                          </Text>
-                        </Pressable>
-                      </View>
                     </View>
                   )}
 
@@ -860,15 +822,7 @@ export const AddStandardScreen: React.FC<AddStandardScreenProps> = ({
                       </Text>
                     ) : (
                       <Text style={styles.saveStandardBtnText}>
-                        {(() => {
-                          const valNum = parseFloat(standardValue);
-                          const exists = test?.standards.some(
-                            (s) => !isNaN(valNum) && Math.abs(s.value - valNum) < 1e-4
-                          );
-                          return exists
-                            ? `✓ Update Bottle Calibration (${standardValue} ${unit})`
-                            : `Save Standard (${standardValue} ${unit})`;
-                        })()}
+                        Save Standard ({standardValue} {unit})
                       </Text>
                     )}
                   </Pressable>

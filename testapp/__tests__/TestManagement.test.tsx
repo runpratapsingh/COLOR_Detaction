@@ -124,7 +124,7 @@ describe('Test Management Components', () => {
     expect(tree).toBeDefined();
   });
 
-  it('renders AddStandardScreen correctly', async () => {
+  it('renders AddStandardScreen correctly without Retake buttons', async () => {
     let tree: any;
     await ReactTestRenderer.act(async () => {
       tree = ReactTestRenderer.create(
@@ -137,5 +137,60 @@ describe('Test Management Components', () => {
       );
     });
     expect(tree).toBeDefined();
+
+    // Verify no Retake button text is rendered
+    const allText = tree.root.findAllByType('Text').map((t: any) => t.props.children).flat().join(' ');
+    expect(allText).not.toContain('Retake Photo');
+    expect(allText).not.toContain('Retake with Next Bottle');
+  });
+
+  it('validates alphanumeric Test ID and alphabetic Test Name in CreateEditTestScreen', async () => {
+    const alertSpy = jest.spyOn(require('react-native').Alert, 'alert');
+    let tree: any;
+    await ReactTestRenderer.act(async () => {
+      tree = ReactTestRenderer.create(
+        <CreateEditTestScreen
+          session={mockManagerSession}
+          onBack={jest.fn()}
+          onSaved={jest.fn()}
+        />
+      );
+    });
+
+    const root = tree.root;
+    const textInputs = root.findAllByType(require('react-native').TextInput);
+    const saveButton = root.findByProps({ testID: 'btn-save-test' });
+
+    // Test non-alphanumeric code (e.g. "TEST#123")
+    await ReactTestRenderer.act(async () => {
+      textInputs[0].props.onChangeText('TEST#123');
+      textInputs[1].props.onChangeText('Valid Name');
+    });
+
+    await ReactTestRenderer.act(async () => {
+      saveButton.props.onPress();
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Validation Error',
+      expect.stringContaining('alphanumeric only')
+    );
+
+    // Test non-alphabetic name (e.g. "Nitrate Test 123")
+    await ReactTestRenderer.act(async () => {
+      textInputs[0].props.onChangeText('NITRATE001');
+      textInputs[1].props.onChangeText('Nitrate Test 123');
+    });
+
+    await ReactTestRenderer.act(async () => {
+      saveButton.props.onPress();
+    });
+
+    expect(alertSpy).toHaveBeenCalledWith(
+      'Validation Error',
+      expect.stringContaining('alphabetic only')
+    );
+
+    alertSpy.mockRestore();
   });
 });

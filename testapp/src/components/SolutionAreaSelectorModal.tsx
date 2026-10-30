@@ -180,7 +180,7 @@ export const SolutionAreaSelectorModal: React.FC<SolutionAreaSelectorModalProps>
               style={({ pressed }) => [styles.backBtn, pressed && styles.btnPressed]}
               onPress={onCancel}
               hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-              <Text style={styles.backBtnText}>✕ Retake</Text>
+              <Text style={styles.backBtnText}>✕ Cancel</Text>
             </Pressable>
           </View>
 
